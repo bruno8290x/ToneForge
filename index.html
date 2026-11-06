@@ -654,6 +654,19 @@
 
             <div class="space-y-4 text-[13px] text-white/75 leading-relaxed">
                 <div class="apple-material-inset rounded-2xl p-4 space-y-2">
+                    <div class="font-semibold text-white">Clave de Groq <span class="text-[11px] font-normal text-emerald-300/80 ml-1">recomendada · rápida</span></div>
+                    <p class="text-[12.5px] text-white/65">Gratis y sin tarjeta. Si la pones, ToneForge la usa primero y deja Gemini como respaldo.</p>
+                    <div class="pt-1 flex gap-2">
+                        <input id="groqKeyInput" type="password" placeholder="gsk_..."
+                            class="flex-grow bg-black/50 border border-white/15 rounded-xl px-3 py-2 text-[12.5px] text-white sf-mono focus:outline-none focus:border-white/40">
+                        <button type="button" onclick="saveUserApiKey()" class="apple-button-primary px-4 py-2 rounded-xl text-[12px] font-semibold">Guardar</button>
+                    </div>
+                    <div class="pt-1 text-[11px] text-white/45">
+                        <a href="https://console.groq.com/keys" target="_blank" rel="noopener noreferrer" class="underline hover:text-white">Conseguir clave gratis en Groq ↗</a>
+                    </div>
+                </div>
+
+                <div class="apple-material-inset rounded-2xl p-4 space-y-2">
                     <div class="font-semibold text-white">1. ¿Por qué sale a veces el error 403 y cómo lo soluciono?</div>
                     <p class="text-[12.5px] text-white/65">
                         El catálogo de canciones incluidas funciona al instante sin internet. Para analizar canciones nuevas con IA desde fuera de esta ventana (o si el servidor temporal devuelve 403), pega tu propia clave gratuita de <strong>Google AI Studio (Gemini API Key)</strong>. Se guarda únicamente en tu navegador.
@@ -1144,9 +1157,10 @@
 
         function updateApiBadgeUI() {
             const dot = document.getElementById("apiStatusDot");
-            const userKey = getSavedUserKey();
+            const userKey = getSavedUserKey() || getGroqKey();
             const inputEl = document.getElementById("customApiKeyInput");
-            if (inputEl && userKey) inputEl.value = userKey;
+            if (inputEl) inputEl.value = getSavedUserKey();
+            const gi = document.getElementById("groqKeyInput"); if (gi) gi.value = getGroqKey();
 
             if (userKey) {
                 dot.className = "w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_8px_#34d399]";
@@ -1155,25 +1169,26 @@
             }
         }
 
+        function getGroqKey() { try { return localStorage.getItem("toneforge_groq_api_key") || ""; } catch (e) { return ""; } }
+
         function saveUserApiKey() {
-            const val = document.getElementById("customApiKeyInput").value.trim();
+            const g = document.getElementById("customApiKeyInput").value.trim();
+            const q = document.getElementById("groqKeyInput").value.trim();
             try {
-                if (val) {
-                    localStorage.setItem("toneforge_gemini_api_key", val);
-                    showToast("Clave API personal guardada en este dispositivo");
-                }
+                if (g) localStorage.setItem("toneforge_gemini_api_key", g);
+                if (q) localStorage.setItem("toneforge_groq_api_key", q);
+                if (g || q) showToast("Clave guardada en este dispositivo");
             } catch (e) {}
             updateApiBadgeUI();
             closeModal("portabilityModal");
         }
 
         function clearUserApiKey() {
-            try {
-                localStorage.removeItem("toneforge_gemini_api_key");
-            } catch (e) {}
+            try { localStorage.removeItem("toneforge_gemini_api_key"); localStorage.removeItem("toneforge_groq_api_key"); } catch (e) {}
             document.getElementById("customApiKeyInput").value = "";
+            document.getElementById("groqKeyInput").value = "";
             updateApiBadgeUI();
-            showToast("Clave eliminada");
+            showToast("Claves eliminadas");
         }
 
         function openModal(id) {
@@ -1688,7 +1703,7 @@ REGLAS:
             // 1. Pregunta a Google qué modelos puede usar esta clave (así nunca falla por un nombre antiguo)
             let models = [];
             try {
-                const r = await fetch(`${base}/models?pageSize=100`, { headers });
+                const r = await tfetch(`${base}/models?pageSize=100`, { headers }, 12000);
                 if (r.status === 400 || r.status === 401 || r.status === 403) {
                     const key_hint = activeKey.startsWith("AIza") ? "" : " (las claves de AI Studio empiezan por AIza)";
                     throw fail("BAD_KEY", "Google rechaza esta clave" + key_hint + ". Crea una nueva en aistudio.google.com/app/apikey");
@@ -1716,7 +1731,7 @@ REGLAS:
             let lastError = null;
             for (const modelName of models) {
                 try {
-                    const res = await fetch(`${base}/models/${modelName}:generateContent`, { method: "POST", headers, body: JSON.stringify(payload) });
+                    const res = await tfetch(`${base}/models/${modelName}:generateContent`, { method: "POST", headers, body: JSON.stringify(payload) }, 30000);
                     if (res.status === 429) { lastError = fail("QUOTA", "Has llegado al límite gratuito de Google. Espera un minuto e inténtalo otra vez"); continue; }
                     if (!res.ok) { lastError = fail("HTTP_" + res.status, "Google devolvió un error (" + res.status + "). Reintentando con otro modelo…"); continue; }
                     const json = await res.json();
@@ -1725,6 +1740,55 @@ REGLAS:
                 } catch (err) { lastError = err; }
             }
             throw lastError || fail("NET", "No se pudo conectar con Google. Comprueba tu conexión");
+        }
+
+        function tfetch(url, opts, ms) {
+            const c = new AbortController();
+            const t = setTimeout(() => c.abort(), ms);
+            return fetch(url, { ...opts, signal: c.signal }).finally(() => clearTimeout(t));
+        }
+
+        async function callGroqModel(queryText) {
+            const key = getGroqKey().trim();
+            const fail = (msg) => { const e = new Error(msg); e.userMessage = msg; return e; };
+            const sys = aiSystemInstruction + "\n\nResponde ÚNICAMENTE con un objeto JSON válido, sin texto extra, que cumpla exactamente este esquema OpenAPI (incluye TODOS los campos required):\n" + JSON.stringify(aiResponseSchema);
+            const models = ["llama-3.3-70b-versatile", "openai/gpt-oss-120b", "llama-3.1-8b-instant"];
+            let last = null;
+            for (const model of models) {
+                try {
+                    const res = await tfetch("https://api.groq.com/openai/v1/chat/completions", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json", "Authorization": "Bearer " + key },
+                        body: JSON.stringify({
+                            model, temperature: 0.4, max_tokens: 3500,
+                            response_format: { type: "json_object" },
+                            messages: [{ role: "system", content: sys }, { role: "user", content: `Analiza la canción "${queryText}" para guitarra en Reaper con Archetype Gojira X y AmpliTube 5.` }]
+                        })
+                    }, 40000);
+                    if (res.status === 401 || res.status === 403) throw fail("Groq rechaza la clave. Crea una nueva en console.groq.com/keys");
+                    if (res.status === 429) { last = fail("Límite gratuito de Groq alcanzado. Espera un minuto"); continue; }
+                    if (!res.ok) { last = fail("Groq devolvió un error (" + res.status + ")"); continue; }
+                    const text = (await res.json())?.choices?.[0]?.message?.content;
+                    if (!text) continue;
+                    const obj = JSON.parse(text.replace(/^```json|```$/g, "").trim());
+                    if ((aiResponseSchema.required || []).every(k => k in obj)) return obj;
+                    last = fail("Groq devolvió un análisis incompleto");
+                } catch (e) { last = e; if (e.userMessage && /rechaza/.test(e.userMessage)) throw e; }
+            }
+            throw last || fail("No se pudo conectar con Groq");
+        }
+
+        // Groq primero (más rápido); Gemini como respaldo
+        async function callAI(queryText) {
+            const hasGroq = !!getGroqKey().trim();
+            const hasGem = !!(getSavedUserKey() || defaultCanvasKey).trim();
+            if (!hasGroq && !hasGem) { const e = new Error("NO_KEY"); e.userMessage = "Pega una clave gratuita (Groq o Google AI Studio) para analizar canciones nuevas"; throw e; }
+            const order = [];
+            if (hasGroq) order.push(callGroqModel);
+            if (hasGem) order.push(callGeminiModel);
+            let last = null;
+            for (const fn of order) { try { return await fn(queryText); } catch (e) { last = e; } }
+            throw last;
         }
 
         async function executeSongAnalysis(rawQuery) {
@@ -1751,7 +1815,7 @@ REGLAS:
             workspace.classList.add("opacity-40", "pointer-events-none");
 
             try {
-                const [aiData, rawMeta] = await Promise.all([callGeminiModel(rawQuery), fetchItunesMetadata(rawQuery)]);
+                const [aiData, rawMeta] = await Promise.all([callAI(rawQuery), fetchItunesMetadata(rawQuery)]);
                 const itunesMeta = (await fetchItunesMetadata(`${aiData.artistName} ${aiData.songTitle}`, { artist: aiData.artistName, title: aiData.songTitle })) || rawMeta;
                 renderSongAnalysis(aiData, itunesMeta);
                 addToHistory(aiData, rawQuery, true);
