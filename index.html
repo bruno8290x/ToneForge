@@ -1859,9 +1859,6 @@ REGLAS:
             libAudio.src = url;
             libAudio.play().then(() => { document.querySelectorAll(".pick-play").forEach(b => b.textContent = "▶"); btn.textContent = "❚❚"; }).catch(() => {});
         }
-        const resetPickBtns = () => document.querySelectorAll(".pick-play").forEach(b => b.textContent = "▶");
-        libAudio.addEventListener("pause", resetPickBtns);
-        libAudio.addEventListener("ended", resetPickBtns);
 
         async function choosePick(i) {
             const it = pickerItems[i];
@@ -2008,6 +2005,9 @@ REGLAS:
         libAudio.addEventListener("play", () => { clearPlayingCards(); if (playingCard) playingCard.classList.add("is-playing"); });
         libAudio.addEventListener("pause", clearPlayingCards);
         libAudio.addEventListener("ended", clearPlayingCards);
+        const resetPickBtns = () => document.querySelectorAll(".pick-play").forEach(b => b.textContent = "▶");
+        libAudio.addEventListener("pause", resetPickBtns);
+        libAudio.addEventListener("ended", resetPickBtns);
         audioEl.addEventListener("play", () => libAudio.pause());
 
         async function openLibraryItem(item) {
