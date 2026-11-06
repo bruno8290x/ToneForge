@@ -1,0 +1,1921 @@
+<!DOCTYPE html>
+<html lang="es" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, viewport-fit=cover">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="ToneForge">
+    <title>ToneForge — Apple Music & Logic Pro Guitar Rig</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        :root {
+            --accent: #ff6933;
+            --accent-secondary: #ff2d55;
+            --ambient-1: #3b1406;
+            --ambient-2: #1c0b08;
+            --glass-surface: rgba(28, 28, 30, 0.64);
+            --glass-elevated: rgba(44, 44, 46, 0.56);
+            --glass-border: rgba(255, 255, 255, 0.13);
+            --glass-highlight: rgba(255, 255, 255, 0.18);
+            --text-primary: #f5f5f7;
+            --text-secondary: rgba(235, 235, 245, 0.62);
+            --text-tertiary: rgba(235, 235, 245, 0.38);
+        }
+
+        * {
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
+            background-color: #000000;
+            color: var(--text-primary);
+            letter-spacing: -0.011em;
+            overflow-x: hidden;
+            margin: 0;
+        }
+
+        .sf-display {
+            font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Helvetica Neue", sans-serif;
+            letter-spacing: -0.026em;
+        }
+
+        .sf-mono {
+            font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Monaco, Consolas, monospace;
+            letter-spacing: -0.02em;
+            font-variant-numeric: tabular-nums;
+        }
+
+        /* Apple Music Live Ambient Mesh Canvas */
+        .ambient-stage {
+            position: fixed;
+            inset: 0;
+            z-index: -2;
+            background: #000000;
+            overflow: hidden;
+        }
+
+        .ambient-artwork-blur {
+            position: absolute;
+            inset: -30%;
+            background-size: cover;
+            background-position: center;
+            filter: blur(110px) saturate(240%) brightness(0.38);
+            opacity: 0.85;
+            transform: scale(1.15);
+            transition: background-image 1.4s cubic-bezier(0.22, 1, 0.36, 1);
+            animation: appleAmbientBreathe 28s ease-in-out infinite alternate;
+        }
+
+        .ambient-gradient-mesh {
+            position: absolute;
+            inset: 0;
+            background: 
+                radial-gradient(circle at 18% 18%, var(--ambient-1) 0%, transparent 58%),
+                radial-gradient(circle at 82% 78%, var(--ambient-2) 0%, transparent 62%),
+                radial-gradient(circle at 50% 0%, rgba(255, 255, 255, 0.04) 0%, transparent 50%);
+            transition: background 1.2s ease;
+        }
+
+        .ambient-scrim {
+            position: fixed;
+            inset: 0;
+            z-index: -1;
+            background: linear-gradient(180deg, rgba(0,0,0,0.28) 0%, rgba(0,0,0,0.68) 65%, rgba(0,0,0,0.92) 100%);
+            pointer-events: none;
+        }
+
+        @keyframes appleAmbientBreathe {
+            0% { transform: scale(1.12) rotate(0deg) translate3d(0, 0, 0); }
+            100% { transform: scale(1.24) rotate(3deg) translate3d(-2%, 2%, 0); }
+        }
+
+        /* macOS Sequoia & iPadOS 18 Liquid Glass Surfaces */
+        .apple-material {
+            background: var(--glass-surface);
+            backdrop-filter: blur(54px) saturate(210%);
+            -webkit-backdrop-filter: blur(54px) saturate(210%);
+            border: 0.5px solid var(--glass-border);
+            box-shadow: 
+                0 24px 48px -12px rgba(0, 0, 0, 0.6),
+                inset 0 0.5px 0 0 var(--glass-highlight);
+        }
+
+        .apple-material-inset {
+            background: rgba(255, 255, 255, 0.045);
+            border: 0.5px solid rgba(255, 255, 255, 0.08);
+            box-shadow: inset 0 0.5px 0 0 rgba(255, 255, 255, 0.06);
+        }
+
+        .apple-button-glass {
+            background: rgba(255, 255, 255, 0.08);
+            border: 0.5px solid rgba(255, 255, 255, 0.14);
+            box-shadow: inset 0 0.5px 0 0 rgba(255, 255, 255, 0.16);
+            transition: all 0.2s cubic-bezier(0.25, 1, 0.5, 1);
+        }
+
+        .apple-button-glass:hover {
+            background: rgba(255, 255, 255, 0.14);
+            border-color: rgba(255, 255, 255, 0.24);
+        }
+
+        .apple-button-glass:active {
+            transform: scale(0.97);
+        }
+
+        .apple-button-primary {
+            background: var(--accent);
+            color: #ffffff;
+            box-shadow: 0 6px 20px -4px color-mix(in srgb, var(--accent) 55%, transparent), inset 0 1px 0 rgba(255,255,255,0.28);
+            transition: all 0.2s cubic-bezier(0.25, 1, 0.5, 1);
+        }
+
+        .apple-button-primary:hover {
+            filter: brightness(1.08);
+        }
+
+        .apple-button-primary:active {
+            transform: scale(0.97);
+        }
+
+        /* iOS / macOS Segmented Control */
+        .apple-segmented {
+            background: rgba(118, 118, 128, 0.24);
+            padding: 3px;
+            border-radius: 12px;
+            display: inline-flex;
+            position: relative;
+            border: 0.5px solid rgba(255, 255, 255, 0.07);
+        }
+
+        .apple-segment-btn {
+            position: relative;
+            z-index: 1;
+            padding: 7px 16px;
+            border-radius: 9px;
+            font-size: 13px;
+            font-weight: 500;
+            color: rgba(235, 235, 245, 0.65);
+            transition: all 0.22s cubic-bezier(0.25, 1, 0.5, 1);
+            display: flex;
+            align-items: center;
+            gap: 7px;
+            white-space: nowrap;
+        }
+
+        .apple-segment-btn.active {
+            background: rgba(255, 255, 255, 0.16);
+            color: #ffffff;
+            font-weight: 600;
+            box-shadow: 0 3px 8px rgba(0, 0, 0, 0.35), 0 1px 1px rgba(0, 0, 0, 0.15), inset 0 0.5px 0 rgba(255, 255, 255, 0.25);
+        }
+
+        /* Logic Pro Smart Controls Hardware Surface */
+        .logic-chassis {
+            background: linear-gradient(180deg, rgba(34, 34, 38, 0.85) 0%, rgba(18, 18, 20, 0.92) 100%);
+            border: 0.5px solid rgba(255, 255, 255, 0.12);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+        }
+
+        .logic-module-slot {
+            background: rgba(0, 0, 0, 0.28);
+            border: 0.5px solid rgba(255, 255, 255, 0.07);
+            box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.45);
+        }
+
+        .logic-anodized-knob {
+            background: conic-gradient(
+                from 180deg at 50% 50%,
+                #222226 0deg,
+                #3c3c42 60deg,
+                #1a1a1e 135deg,
+                #42424a 215deg,
+                #19191c 295deg,
+                #222226 360deg
+            );
+            box-shadow: 
+                0 6px 12px rgba(0, 0, 0, 0.7),
+                inset 0 0.5px 1px rgba(255, 255, 255, 0.32);
+        }
+
+        /* Apple Music Equalizer Animation */
+        @keyframes eqBar {
+            0%, 100% { transform: scaleY(0.25); }
+            50% { transform: scaleY(1); }
+        }
+        .eq-bar-1 { animation: eqBar 0.65s ease-in-out infinite; transform-origin: bottom; }
+        .eq-bar-2 { animation: eqBar 0.85s ease-in-out 0.18s infinite; transform-origin: bottom; }
+        .eq-bar-3 { animation: eqBar 0.72s ease-in-out 0.32s infinite; transform-origin: bottom; }
+
+        /* Hide scrollbars cleanly */
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+        /* Portada que late al ritmo del BPM */
+        .cover-pulse { animation: coverBeat var(--beat, 1.2s) ease-in-out infinite; will-change: transform, box-shadow; }
+        .cover-pulse.playing { animation-duration: calc(var(--beat, 1.2s) / 2); }
+        @keyframes coverBeat {
+            0%, 100% { transform: scale(1); box-shadow: 0 24px 48px rgba(0,0,0,0.75), 0 0 0 0 color-mix(in srgb, var(--accent) 0%, transparent); }
+            50% { transform: scale(1.04); box-shadow: 0 28px 56px rgba(0,0,0,0.8), 0 0 46px 6px color-mix(in srgb, var(--accent) 45%, transparent); }
+        }
+        @media (prefers-reduced-motion: reduce) { .cover-pulse { animation: none; } }
+
+        /* Biblioteca de portadas */
+        .lib-row { display:flex; gap:14px; overflow-x:auto; padding:6px 4px 12px; scroll-snap-type:x proximity; }
+        .lib-card { width:128px; flex:none; cursor:pointer; scroll-snap-align:start; animation: libIn .55s cubic-bezier(.22,1,.36,1) both; animation-delay:var(--d,0ms); transition: transform .25s cubic-bezier(.25,1,.5,1); }
+        .lib-card:hover { transform: translateY(-4px) scale(1.02); }
+        .lib-card:active { transform: scale(.97); }
+        @keyframes libIn { from { opacity:0; transform: translateY(14px) scale(.96); } to { opacity:1; transform:none; } }
+        .lib-cover { position:relative; aspect-ratio:1; border-radius:16px; overflow:hidden; background:#1c1c1e; border:.5px solid rgba(255,255,255,.14); box-shadow:0 14px 28px -8px rgba(0,0,0,.7); }
+        .lib-cover img { width:100%; height:100%; object-fit:cover; display:block; animation: libFade .6s ease both; }
+        @keyframes libFade { from { opacity:0; filter:blur(8px); } to { opacity:1; filter:none; } }
+        .lib-cover::after { content:""; position:absolute; inset:0; background:linear-gradient(115deg, transparent 35%, rgba(255,255,255,.22) 50%, transparent 65%); transform:translateX(-120%); transition:transform .8s ease; pointer-events:none; }
+        .lib-card:hover .lib-cover::after { transform:translateX(120%); }
+        .lib-play { position:absolute; right:8px; bottom:8px; width:34px; height:34px; border-radius:50%; background:rgba(0,0,0,.62); backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px); border:.5px solid rgba(255,255,255,.3); color:#fff; font-size:12px; display:flex; align-items:center; justify-content:center; transition:transform .2s, background .2s; z-index:2; }
+        .lib-play:hover { background:var(--accent); transform:scale(1.1); }
+        .lib-play .i-pause { display:none; font-size:10px; letter-spacing:-1px; }
+        .lib-card.is-playing .lib-play { background:var(--accent); }
+        .lib-card.is-playing .i-play { display:none; }
+        .lib-card.is-playing .i-pause { display:inline; }
+        .lib-card.is-playing .lib-cover { animation: coverBeat 1s ease-in-out infinite; }
+        .lib-eq { position:absolute; left:9px; bottom:9px; display:none; align-items:flex-end; gap:2px; height:16px; }
+        .lib-card.is-playing .lib-eq { display:flex; }
+        .lib-eq i { width:3px; border-radius:2px; background:#fff; animation: libEq .8s ease-in-out infinite; }
+        .lib-eq i:nth-child(2) { animation-delay:.2s; } .lib-eq i:nth-child(3) { animation-delay:.4s; }
+        @keyframes libEq { 0%,100% { height:3px; } 50% { height:15px; } }
+        .lib-card.no-preview .lib-play { opacity:.35; }
+        .lib-title { margin-top:8px; font-size:13px; font-weight:600; color:#fff; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+        .lib-artist { font-size:11.5px; color:var(--text-secondary); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+        /* Resplandor ambiental que flota con el color de la canción */
+        body::after { content:""; position:fixed; width:70vmax; height:70vmax; left:-20vmax; top:-25vmax; border-radius:50%; background:radial-gradient(circle, color-mix(in srgb, var(--accent) 26%, transparent), transparent 62%); filter:blur(30px); pointer-events:none; z-index:-1; animation: orbDrift 22s ease-in-out infinite alternate; transition: background 1.2s; }
+        @keyframes orbDrift { to { transform: translate3d(38vw, 30vh, 0) scale(1.15); } }
+        @media (prefers-reduced-motion: reduce) { .lib-card, .lib-cover img, body::after { animation:none; } }
+
+        .lv-pill { flex:none; padding:7px 16px; border-radius:999px; font-size:13px; font-weight:600; color:rgba(235,235,245,.7); background:rgba(255,255,255,.07); border:.5px solid rgba(255,255,255,.14); transition:all .22s; }
+        .lv-pill.on { background:var(--accent); color:#fff; border-color:transparent; box-shadow:0 6px 18px -6px var(--accent); }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col selection:bg-white/20">
+
+    <!-- Apple Music Ambient Artwork Canvas -->
+    <div class="ambient-stage">
+        <div id="ambientArtworkBlur" class="ambient-artwork-blur"></div>
+        <div class="ambient-gradient-mesh"></div>
+    </div>
+    <div class="ambient-scrim"></div>
+
+    <!-- macOS Sequoia Translucent Window Titlebar -->
+    <header class="sticky top-0 z-40 w-full bg-black/40 backdrop-blur-2xl border-b border-white/[0.08]">
+        <div class="max-w-6xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between gap-3">
+            <!-- Left: Window Controls & App Title -->
+            <div class="flex items-center gap-3.5">
+                <div class="hidden sm:flex items-center gap-2 mr-1">
+                    <span class="w-3 h-3 rounded-full bg-[#ff5f56] border border-black/20"></span>
+                    <span class="w-3 h-3 rounded-full bg-[#ffbd2e] border border-black/20"></span>
+                    <span class="w-3 h-3 rounded-full bg-[#27c93f] border border-black/20"></span>
+                </div>
+                <div class="flex items-center gap-2.5">
+                    <div class="w-7 h-7 rounded-lg flex items-center justify-center text-white shadow-sm" style="background: linear-gradient(135deg, var(--accent), var(--accent-secondary));">
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/>
+                        </svg>
+                    </div>
+                    <span class="sf-display font-semibold text-[15px] tracking-tight text-white">ToneForge</span>
+                    <span class="hidden md:inline-block text-[12px] text-white/45 font-normal">Logic Rig & Tab Assistant</span>
+                </div>
+            </div>
+
+            <!-- Right: Portability Download & API Key Settings -->
+            <div class="flex items-center gap-2">
+                <button type="button" onclick="openModal('portabilityModal')"
+                    class="apple-button-glass px-3 py-1.5 rounded-full text-[12px] font-medium text-white/90 flex items-center gap-1.5">
+                    <span id="apiStatusDot" class="w-2 h-2 rounded-full bg-emerald-400"></span>
+                    <span>Clave API & Móvil</span>
+                </button>
+
+                <button type="button" onclick="downloadStandaloneApp()"
+                    class="apple-button-glass px-3 py-1.5 rounded-full text-[12px] font-medium text-white/90 flex items-center gap-1.5"
+                    title="Descarga este programa en un solo archivo .html para usarlo en cualquier PC o móvil">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+                    </svg>
+                    <span class="hidden sm:inline">Descargar App</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Workspace -->
+    <main class="flex-grow w-full max-w-6xl mx-auto px-4 sm:px-6 py-6 sm:py-8 space-y-6">
+
+        <!-- macOS Spotlight Search Bar + Instant Curated Library -->
+        <section class="space-y-3">
+            <form id="searchForm" class="apple-material rounded-2xl p-1.5 flex items-center gap-2 focus-within:border-white/30 transition-colors">
+                <div class="pl-3.5 pr-1 text-white/45 flex items-center pointer-events-none">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>
+                    </svg>
+                </div>
+                <input id="songInput" type="text" required
+                    placeholder="Buscar canción o artista (ej. Walk - Pantera, Stranded - Gojira, My Own Summer...)"
+                    class="w-full bg-transparent text-[15px] text-white placeholder-white/40 py-2.5 focus:outline-none">
+                <button id="submitBtn" type="submit"
+                    class="apple-button-primary px-5 py-2.5 rounded-xl text-[13px] font-semibold shrink-0 flex items-center gap-1.5">
+                    <span>Analizar</span>
+                </button>
+            </form>
+
+            <div id="libraryWrap" class="space-y-5 pt-2">
+                <div id="historyBlock" class="hidden">
+                    <div class="flex items-center justify-between mb-2 px-1">
+                        <h3 class="sf-display text-[15px] font-semibold text-white/95">Tus búsquedas</h3>
+                        <button type="button" onclick="clearHistory()" class="text-[11px] text-white/40 hover:text-white/75">Borrar historial</button>
+                    </div>
+                    <div id="historyRow" class="lib-row no-scrollbar"></div>
+                </div>
+                <div id="recoBlock">
+                    <div class="px-1 mb-2">
+                        <h3 class="sf-display text-[15px] font-semibold text-white/95">Recomendadas de la semana <span id="recoWeek" class="text-[11px] font-normal text-white/40 ml-1"></span></h3>
+                    </div>
+                    <div class="flex gap-2 mb-1 px-1 overflow-x-auto no-scrollbar">
+                        <button type="button" class="lv-pill" data-lv="ini" onclick="setRecoLevel('ini')">Iniciación</button>
+                        <button type="button" class="lv-pill" data-lv="int" onclick="setRecoLevel('int')">Intermedio</button>
+                        <button type="button" class="lv-pill" data-lv="adv" onclick="setRecoLevel('adv')">Avanzado</button>
+                    </div>
+                    <p id="recoHint" class="text-[11.5px] text-white/45 px-1"></p>
+                    <div id="recoRow" class="lib-row no-scrollbar"></div>
+                </div>
+                <div>
+                    <h3 class="sf-display text-[15px] font-semibold text-white/95 mb-2 px-1">Catálogo instantáneo <span class="text-[11px] font-normal text-white/40 ml-1">sin clave API</span></h3>
+                    <div id="catalogRow" class="lib-row no-scrollbar"></div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Subtle Loading Sheet -->
+        <div id="loadingSheet" class="hidden apple-material rounded-3xl p-12 flex-col items-center justify-center text-center">
+            <div class="w-8 h-8 rounded-full border-2 border-white/15 border-t-white animate-spin mb-4"></div>
+            <p class="sf-display text-[17px] font-semibold text-white">Analizando ingeniería de sonido y biomecánica…</p>
+            <p class="text-[13px] text-white/55 mt-1 max-w-md">Calculando afinación, técnica de púa y parámetros exactos para Archetype: Gojira X y AmpliTube 5 en Reaper.</p>
+        </div>
+
+        <!-- MAIN APPLE MUSIC & LOGIC PRO CONTENT -->
+        <div id="workspaceContent" class="space-y-6">
+
+            <!-- 1. APPLE MUSIC HERO HEADER -->
+            <section class="apple-material rounded-[28px] p-6 sm:p-8">
+                <div class="flex flex-col md:flex-row items-center md:items-end gap-6 sm:gap-8">
+                    <!-- Album Artwork with Elevation & Inline Audio Preview -->
+                    <div id="coverWrap" class="cover-pulse relative w-44 h-44 sm:w-52 sm:h-52 shrink-0 rounded-[20px] overflow-hidden shadow-[0_24px_48px_rgba(0,0,0,0.75)] border border-white/15 bg-neutral-900 group">
+                        <img id="heroArtwork" src="" alt="Portada" class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-[1.03]">
+                        <button id="previewPlayBtn" type="button" onclick="toggleAudioPreview()"
+                            class="absolute bottom-3 left-3 right-3 py-2 px-3 rounded-xl bg-black/65 backdrop-blur-xl border border-white/20 text-white text-[12px] font-medium flex items-center justify-center gap-2 transition-transform active:scale-95">
+                            <span id="previewPlayIcon">▶</span>
+                            <span id="previewPlayLabel">Escuchar Muestra</span>
+                            <span id="previewEqBars" class="hidden items-end gap-0.5 h-3 ml-0.5">
+                                <i class="w-0.5 h-3 bg-white rounded-full eq-bar-1"></i>
+                                <i class="w-0.5 h-3 bg-white rounded-full eq-bar-2"></i>
+                                <i class="w-0.5 h-3 bg-white rounded-full eq-bar-3"></i>
+                            </span>
+                        </button>
+                        <audio id="itunesAudio" class="hidden"></audio>
+                    </div>
+
+                    <!-- Apple Music Typography & Metadata -->
+                    <div class="flex-grow text-center md:text-left space-y-3">
+                        <div class="flex flex-wrap items-center justify-center md:justify-start gap-2">
+                            <span id="heroGenrePill" class="px-2.5 py-0.5 rounded-md bg-white/10 text-white/85 text-[11px] font-semibold tracking-tight">Groove Metal</span>
+                            <span id="heroYearPill" class="px-2.5 py-0.5 rounded-md bg-white/[0.06] text-white/60 sf-mono text-[11px]">1992</span>
+                            <span id="heroBpmPill" class="px-2.5 py-0.5 rounded-md bg-white/[0.06] text-white/60 sf-mono text-[11px]">118 BPM</span>
+                            <span id="heroTuningPill" class="px-2.5 py-0.5 rounded-md text-white sf-mono text-[11px] font-semibold" style="background: var(--accent);">D Standard</span>
+                        </div>
+
+                        <div>
+                            <h1 id="heroTitle" class="sf-display text-3xl sm:text-5xl font-bold text-white tracking-tight leading-none">Walk</h1>
+                            <p id="heroSubtitle" class="sf-display text-lg sm:text-xl font-medium mt-1.5" style="color: var(--accent);">Pantera — Vulgar Display of Power</p>
+                        </div>
+
+                        <p id="heroSonicDescription" class="text-[14px] text-white/75 leading-relaxed max-w-3xl">
+                            El icónico sonido de estado sólido de Dimebag Darrell: ataque hiper-definido, recorte radical de medios en 500Hz y puerta de ruido inmediata para que cada silencio del riff golpee como un martillo.
+                        </p>
+
+                        <!-- Direct Action Row (Tabs & Backing Track) -->
+                        <div class="pt-2 flex flex-wrap items-center justify-center md:justify-start gap-2">
+                            <a id="btnSongsterr" href="#" target="_blank" rel="noopener noreferrer"
+                                class="apple-button-glass px-3.5 py-2 rounded-xl text-[12px] font-medium text-white flex items-center gap-2">
+                                <span>Tab Interactiva en Songsterr</span>
+                                <span class="text-white/40">↗</span>
+                            </a>
+                            <a id="btnUltimateGuitar" href="#" target="_blank" rel="noopener noreferrer"
+                                class="apple-button-glass px-3.5 py-2 rounded-xl text-[12px] font-medium text-white flex items-center gap-2">
+                                <span>Ultimate Guitar</span>
+                                <span class="text-white/40">↗</span>
+                            </a>
+                            <a id="btnTutorial" href="#" target="_blank" rel="noopener noreferrer"
+                                class="apple-button-glass px-3.5 py-2 rounded-xl text-[12px] font-medium text-white flex items-center gap-2">
+                                <span>Tutorial Paso a Paso (YouTube)</span>
+                                <span class="text-white/40">↗</span>
+                            </a>
+                            <a id="btnBacking" href="#" target="_blank" rel="noopener noreferrer"
+                                class="apple-button-glass px-3.5 py-2 rounded-xl text-[12px] font-medium text-white flex items-center gap-2">
+                                <span>Backing Track sin Guitarra</span>
+                                <span class="text-white/40">↗</span>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 2. PLAYABILITY, BIOMECHANICS & TUNING ROW -->
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+                <!-- Left: Calibrated Playability & Step-by-Step Coach (7 cols) -->
+                <section class="lg:col-span-7 apple-material rounded-[26px] p-6 sm:p-7 flex flex-col justify-between space-y-5">
+                    <div class="flex flex-wrap items-baseline justify-between gap-2 border-b border-white/[0.08] pb-4">
+                        <div>
+                            <h2 class="sf-display text-xl font-bold text-white">Complejidad y Técnica en Guitarra</h2>
+                            <p id="diffSummaryBadge" class="text-[13px] text-white/55 mt-0.5">Exigencia de Groove, Micro-Bend y Silenciado</p>
+                        </div>
+                        <div class="flex items-center gap-4">
+                            <div class="text-right">
+                                <div class="text-[11px] text-white/45">Riff Rítmico</div>
+                                <div id="scoreRiffValue" class="sf-mono text-lg font-bold text-white">7.2 <span class="text-xs text-white/40">/ 10</span></div>
+                            </div>
+                            <div class="h-6 w-[1px] bg-white/10"></div>
+                            <div class="text-right">
+                                <div class="text-[11px] text-white/45">Solo Principal</div>
+                                <div id="scoreSoloValue" class="sf-mono text-lg font-bold text-white/80">9.2 <span class="text-xs text-white/40">/ 10</span></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Why the Main Riff is Tricky -->
+                    <div class="apple-material-inset rounded-2xl p-4 space-y-1.5">
+                        <div class="text-[12px] font-semibold text-white/90">¿Dónde está la verdadera dificultad del Riff Principal?</div>
+                        <p id="riffChallengeText" class="text-[13.5px] text-white/70 leading-relaxed"></p>
+                    </div>
+
+                    <!-- 3-Step Concrete Practice Plan -->
+                    <div class="space-y-2.5">
+                        <div class="text-[12px] font-semibold text-white/80">Plan de Práctica en 3 Pasos</div>
+                        <div id="practiceStepsList" class="grid grid-cols-1 gap-2.5">
+                            <!-- Populated by JS -->
+                        </div>
+                    </div>
+
+                    <!-- Tab Accuracy Note -->
+                    <div class="pt-2 border-t border-white/[0.08] flex items-center justify-between text-[12px] text-white/55">
+                        <span id="tabWarningNote">Consejo de Tablatura: Usa la versión en D Standard en Songsterr.</span>
+                    </div>
+                </section>
+
+                <!-- Right: Exact Tuning & 6/7-String Visual Calibrator (5 cols) -->
+                <section class="lg:col-span-5 apple-material rounded-[26px] p-6 sm:p-7 flex flex-col justify-between space-y-5">
+                    <div>
+                        <div class="flex items-center justify-between border-b border-white/[0.08] pb-4 mb-4">
+                            <div>
+                                <h2 class="sf-display text-xl font-bold text-white">Afinación del Tema</h2>
+                                <p class="text-[13px] text-white/55 mt-0.5">Referencia cuerda por cuerda</p>
+                            </div>
+                            <span id="tuningHeaderPill" class="sf-mono text-[13px] font-semibold px-3 py-1 rounded-lg bg-white/10 text-white">D Standard</span>
+                        </div>
+
+                        <p id="tuningExplanationText" class="text-[13.5px] text-white/70 leading-relaxed mb-5"></p>
+
+                        <!-- Visual Headstock / String Pitch Strip -->
+                        <div class="apple-material-inset rounded-2xl p-4">
+                            <div class="flex items-center justify-between text-[11px] text-white/45 mb-2.5">
+                                <span>Grave (6ª)</span>
+                                <span>Aguda (1ª)</span>
+                            </div>
+                            <div id="stringsGrid" class="grid grid-cols-6 gap-2">
+                                <!-- Populated by JS -->
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Pitch Shifter / 7-String Adaptation Box -->
+                    <div class="apple-material-inset rounded-2xl p-4 space-y-1.5">
+                        <div class="text-[12px] font-semibold text-white flex items-center justify-between">
+                            <span>Adaptación sin Desafinar tu Guitarra</span>
+                            <span class="sf-mono text-[11px] px-2 py-0.5 rounded bg-white/10 text-white/80">Reaper / Transpose</span>
+                        </div>
+                        <p id="transposeTipText" class="text-[13px] text-white/65 leading-relaxed"></p>
+                    </div>
+                </section>
+
+            </div>
+
+            <!-- 3. LOGIC PRO FOR MAC/IPAD SMART CONTROLS: "O UN PLUGIN U OTRO" -->
+            <section class="logic-chassis rounded-[30px] p-6 sm:p-8 space-y-6">
+
+                <!-- Top Bar: Title + Native Apple Segmented Plugin Switcher -->
+                <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-white/[0.09] pb-5">
+                    <div>
+                        <div class="flex items-center gap-2.5">
+                            <h2 class="sf-display text-2xl font-bold text-white">Ingeniería de Tono en Reaper</h2>
+                            <button type="button" onclick="copyCurrentPreset()"
+                                class="apple-button-glass px-3 py-1 rounded-lg text-[11px] font-medium text-white/85 flex items-center gap-1.5">
+                                <span>Copiar Ajustes</span>
+                            </button>
+                        </div>
+                        <p class="text-[13px] text-white/55 mt-1">
+                            Elige <strong>uno solo de los dos plugins</strong> en tu pista de Reaper. Te mostramos cuál clava mejor el álbum y la receta exacta para ambos.
+                        </p>
+                    </div>
+
+                    <!-- Sliding Apple Segmented Control -->
+                    <div class="apple-segmented self-start lg:self-auto">
+                        <button type="button" id="segBtnGojira" onclick="switchPlugin('gojira')" class="apple-segment-btn">
+                            <span>Archetype: Gojira X</span>
+                            <span id="recPillGojira" class="hidden px-1.5 py-0.5 rounded text-[10px] font-semibold bg-emerald-500/25 text-emerald-300">Idóneo</span>
+                        </button>
+                        <button type="button" id="segBtnAmplitube" onclick="switchPlugin('amplitube')" class="apple-segment-btn">
+                            <span>AmpliTube 5</span>
+                            <span id="recPillAmplitube" class="hidden px-1.5 py-0.5 rounded text-[10px] font-semibold bg-emerald-500/25 text-emerald-300">Idóneo</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Sound Engineer Recommendation Banner -->
+                <div class="apple-material-inset rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div class="space-y-0.5">
+                        <div id="winnerPluginTitle" class="text-[13px] font-semibold text-white">Recomendación Principal para este tema</div>
+                        <p id="winnerPluginReason" class="text-[13px] text-white/65 leading-relaxed"></p>
+                    </div>
+                </div>
+
+                <!-- Smart Controls Hardware Rack -->
+                <div class="grid grid-cols-1 lg:grid-cols-12 gap-5">
+
+                    <!-- Slot 1: Input, Gate & Stompbox Boost (4 cols) -->
+                    <div class="lg:col-span-4 logic-module-slot rounded-2xl p-5 flex flex-col justify-between space-y-4">
+                        <div class="flex items-center justify-between border-b border-white/[0.07] pb-3">
+                            <div>
+                                <div class="text-[11px] text-white/45 font-medium">Etapa 1 • Pre-Amp</div>
+                                <div id="slotPedalName" class="text-[15px] font-semibold text-white mt-0.5">Noise Gate & Overdrive</div>
+                            </div>
+                            <span id="slotPedalState" class="sf-mono text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300">ON</span>
+                        </div>
+
+                        <div id="knobsPreampGrid" class="grid grid-cols-3 gap-2.5 py-1">
+                            <!-- Gate, Drive, Level Knobs -->
+                        </div>
+
+                        <p id="slotPedalNote" class="text-[12.5px] text-white/60 leading-relaxed pt-2 border-t border-white/[0.06]"></p>
+                    </div>
+
+                    <!-- Slot 2: Main Amplifier Head (8 cols) -->
+                    <div class="lg:col-span-8 logic-module-slot rounded-2xl p-5 flex flex-col justify-between space-y-4">
+                        <div class="flex flex-wrap items-center justify-between gap-2 border-b border-white/[0.07] pb-3">
+                            <div>
+                                <div class="text-[11px] text-white/45 font-medium">Etapa 2 • Cabezal Principal (Escala 0 a 10)</div>
+                                <div id="slotAmpName" class="text-[16px] font-bold text-white mt-0.5">Cabezal High-Gain</div>
+                            </div>
+                            <span id="slotAmpChannel" class="sf-mono text-[11px] text-white/80 px-2.5 py-1 rounded-lg bg-white/[0.07]">Canal Lead</span>
+                        </div>
+
+                        <div id="knobsAmpGrid" class="grid grid-cols-3 sm:grid-cols-6 gap-2.5 py-1">
+                            <!-- Gain, Bass, Mid, Treble, Presence, Master -->
+                        </div>
+
+                        <p id="slotAmpNote" class="text-[12.5px] text-white/60 leading-relaxed pt-2 border-t border-white/[0.06]"></p>
+                    </div>
+                </div>
+
+                <!-- Lower Rack: Cabinet IR + 5-Band Post EQ + Reaper Strip -->
+                <div class="grid grid-cols-1 lg:grid-cols-12 gap-5">
+
+                    <!-- Slot 3: Cabinet & Microphones (5 cols) -->
+                    <div class="lg:col-span-5 logic-module-slot rounded-2xl p-5 flex flex-col justify-between space-y-4">
+                        <div class="border-b border-white/[0.07] pb-3">
+                            <div class="text-[11px] text-white/45 font-medium">Etapa 3 • Pantalla y Micrófonos</div>
+                            <div id="slotCabName" class="text-[15px] font-semibold text-white mt-0.5">4x12 Cabinet</div>
+                        </div>
+
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                            <div class="apple-material-inset rounded-xl p-3">
+                                <div class="text-[11px] text-white/45">Micrófono 1 (Ataque)</div>
+                                <div id="slotMic1" class="sf-mono text-[12.5px] font-semibold text-white mt-1">SM57</div>
+                            </div>
+                            <div class="apple-material-inset rounded-xl p-3">
+                                <div class="text-[11px] text-white/45">Micrófono 2 (Cuerpo)</div>
+                                <div id="slotMic2" class="sf-mono text-[12.5px] font-semibold text-white mt-1">C414 / R121</div>
+                            </div>
+                        </div>
+
+                        <p id="slotCabNote" class="text-[12.5px] text-white/60 leading-relaxed pt-2 border-t border-white/[0.06]"></p>
+                    </div>
+
+                    <!-- Slot 4: Post Graphic EQ Faders (7 cols) -->
+                    <div class="lg:col-span-7 logic-module-slot rounded-2xl p-5 flex flex-col justify-between space-y-4">
+                        <div class="flex items-center justify-between border-b border-white/[0.07] pb-3">
+                            <div>
+                                <div class="text-[11px] text-white/45 font-medium">Etapa 4 • Ecualizador Gráfico del Plugin</div>
+                                <div class="text-[15px] font-semibold text-white mt-0.5">Esculpido Final (-12 dB a +12 dB)</div>
+                            </div>
+                            <span id="slotFxBadge" class="sf-mono text-[11px] text-white/60">FX: Seco en Rítmica</span>
+                        </div>
+
+                        <div id="eqFadersContainer" class="grid grid-cols-7 gap-2 h-36 px-3 py-2 rounded-xl bg-black/40 border border-white/[0.05] items-center">
+                            <!-- 7 EQ Vertical Sliders -->
+                        </div>
+
+                        <p id="slotEqNote" class="text-[12.5px] text-white/60 leading-relaxed"></p>
+                    </div>
+                </div>
+
+                <!-- Reaper Track Setup Strip -->
+                <div class="apple-material-inset rounded-2xl p-4 sm:p-5">
+                    <div class="text-[12px] font-semibold text-white/85 mb-3">Checklist Rápido en tu Pista de REAPER</div>
+                    <div id="reaperStepsGrid" class="grid grid-cols-1 md:grid-cols-3 gap-3 text-[12.5px] text-white/70">
+                        <!-- Populated by JS -->
+                    </div>
+                </div>
+
+            </section>
+
+        </div>
+    </main>
+
+    <!-- MODAL: API KEY & CROSS-DEVICE PORTABILITY (SOLVES 403 & MULTI-DEVICE) -->
+    <div id="portabilityModal" class="fixed inset-0 z-50 hidden items-center justify-center p-4 bg-black/70 backdrop-blur-xl">
+        <div class="apple-material rounded-[28px] max-w-lg w-full p-6 sm:p-7 space-y-5 border border-white/20">
+            <div class="flex items-center justify-between border-b border-white/10 pb-4">
+                <div>
+                    <h3 class="sf-display text-lg font-bold text-white">Portabilidad y Clave API Personal</h3>
+                    <p class="text-[12px] text-white/55">Usa la aplicación en cualquier ordenador o móvil sin errores 403</p>
+                </div>
+                <button type="button" onclick="closeModal('portabilityModal')" class="w-7 h-7 rounded-full bg-white/10 text-white/70 hover:text-white flex items-center justify-center text-sm">✕</button>
+            </div>
+
+            <div class="space-y-4 text-[13px] text-white/75 leading-relaxed">
+                <div class="apple-material-inset rounded-2xl p-4 space-y-2">
+                    <div class="font-semibold text-white">1. ¿Por qué sale a veces el error 403 y cómo lo soluciono?</div>
+                    <p class="text-[12.5px] text-white/65">
+                        El catálogo de canciones incluidas funciona al instante sin internet. Para analizar canciones nuevas con IA desde fuera de esta ventana (o si el servidor temporal devuelve 403), pega tu propia clave gratuita de <strong>Google AI Studio (Gemini API Key)</strong>. Se guarda únicamente en tu navegador.
+                    </p>
+                    <div class="pt-1 flex gap-2">
+                        <input id="customApiKeyInput" type="password" placeholder="AIzaSy..."
+                            class="flex-grow bg-black/50 border border-white/15 rounded-xl px-3 py-2 text-[12.5px] text-white sf-mono focus:outline-none focus:border-white/40">
+                        <button type="button" onclick="saveUserApiKey()" class="apple-button-primary px-4 py-2 rounded-xl text-[12px] font-semibold">Guardar</button>
+                    </div>
+                    <div class="flex items-center justify-between pt-1 text-[11px] text-white/45">
+                        <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener noreferrer" class="underline hover:text-white">Conseguir clave gratis en Google AI Studio ↗</a>
+                        <button type="button" onclick="clearUserApiKey()" class="text-rose-400 hover:underline">Borrar clave guardada</button>
+                    </div>
+                </div>
+
+                <div class="apple-material-inset rounded-2xl p-4 space-y-2">
+                    <div class="font-semibold text-white">2. ¿Puedo descargarlo para otro PC o para mi móvil?</div>
+                    <p class="text-[12.5px] text-white/65">
+                        ¡Sí! No está atado a tu cuenta. Pulsa el botón inferior para descargar el archivo <code>ToneForge-Apple.html</code>. Puedes abrirlo en cualquier PC o enviártelo al móvil y darle a <em>«Añadir a la pantalla de inicio»</em> en Safari/Chrome para tenerlo como una App nativa.
+                    </p>
+                    <button type="button" onclick="downloadStandaloneApp()" class="w-full apple-button-glass py-2.5 rounded-xl text-[12.5px] font-semibold text-white flex items-center justify-center gap-2 mt-2">
+                        <span>Descargar ToneForge-Apple.html Completo</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Subtle macOS Toast Notification -->
+    <div id="appleToast" class="fixed bottom-5 right-5 z-50 hidden items-center gap-2.5 px-4 py-2.5 rounded-2xl apple-material text-[12.5px] font-medium text-white shadow-2xl">
+        <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+        <span id="appleToastText">Copiado</span>
+    </div>
+
+    <footer class="w-full py-6 px-4 text-center text-[12px] text-white/35 border-t border-white/[0.06] mt-6">
+        ToneForge • Diseñado siguiendo las Apple Human Interface Guidelines para Reaper, Archetype: Gojira X y AmpliTube 5
+    </footer>
+
+    <script>
+        // ============================================================================
+        // BUILT-IN ZERO-LATENCY SONG DATABASE (Guarantees 0% failure & offline speed)
+        // ============================================================================
+        const CURATED_SONGS_DB = {
+            "walk": {
+                songTitle: "Walk",
+                artistName: "Pantera",
+                albumName: "Vulgar Display of Power",
+                releaseYear: "1992",
+                bpm: "118 BPM (Compás 12/8)",
+                genre: "Groove Metal",
+                sonicSummary: "El legendario sonido de transistores (Solid-State) de Dimebag Darrell: cabezal Randall RG100ES empujado por un ecualizador paramétrico Furman PQ-3, con recorte extremo en 500 Hz, agudos afilados y puerta de ruido inmediata.",
+                theme: { accent: "#ff6933", secondary: "#ff2d55", ambient1: "#431407", ambient2: "#1f0906" },
+                tuning: {
+                    name: "D Standard (A=425Hz)",
+                    strings: ["D2", "G2", "C3", "F3", "A3", "D4"],
+                    explanation: "Todas las cuerdas bajan 1 tono completo (D-G-C-F-A-D). En el disco original Dimebag afinaba un cuarto de tono más bajo (~425 Hz), pero para tocar encima de Songsterr usa D Standard normal (440 Hz).",
+                    transposeTip: "Si tienes tu guitarra en Mi Estándar (E Standard) y no quieres aflojar las cuerdas, pon la perilla 'Transpose' de Gojira X (o el Pitch Shifter de AmpliTube 5) en -2 semitonos."
+                },
+                difficulty: {
+                    badge: "Groove Pesado • Control de Micro-Bend y Silenciado",
+                    riffScore: 7.2,
+                    soloScore: 9.3,
+                    challenge: "Aunque el riff principal solo usa la 6ª cuerda al aire y el traste 1 (y 2), hacerlo sonar limpio cuesta al principio: exige un estiramiento (bend) de cuarto de tono en el traste 1 con un swing de 12/8 muy marcado y apagar la cuerda en seco con la palma derecha para evitar ruidos de alta ganancia.",
+                    steps: [
+                        "1. Silenciado en seco: Apoya el canto de tu mano derecha cerca del puente. Golpea la 6ª cuerda al aire y apágala inmediatamente después para que quede un silencio total antes del bend.",
+                        "2. El Bend del traste 1: Pisa el traste 1 de la 6ª cuerda con el dedo índice (ayúdate con el dedo medio pegado detrás) y tira ligeramente hacia abajo antes de soltar de nuevo a la cuerda al aire.",
+                        "3. Velocidad progresiva: Pon el reproductor de Songsterr al 65% de velocidad (unos 75 BPM) hasta que el balanceo rítmico te salga automático sin tensar la muñeca."
+                    ],
+                    tabNote: "Usa la tablatura oficial en Songsterr en D Standard; evita las versiones que lo ponen en Drop D."
+                },
+                winnerPlugin: "amplitube",
+                winnerTitle: "Plugin Ideal: IK Multimedia AmpliTube 5 (Colección Dimebag / Solid-State)",
+                winnerReason: "AmpliTube 5 incluye la emulación exacta del Randall RG100ES de estado sólido (Darrell CFH 100W), que clava ese grano cortante y seco de los 90. Aun así, incluimos también la receta exacta en Gojira X.",
+                reaperSteps: [
+                    "Ajusta el Input de tu interfaz para que al golpear fuerte la 6ª cuerda nunca llegue a rojo (-6 dB es ideal).",
+                    "Pon el Oversampling del plugin en 'High' (2x o 4x) para que los agudos extremos tipo Dimebag no suenen digitales.",
+                    "No pongas Reverb en la guitarra rítmica; el riff de Walk necesita sequedad absoluta en los silencios."
+                ],
+                gojiraRig: {
+                    pedalName: "Gate + Pedal 'DIRT' (Booster)",
+                    pedalActive: true,
+                    gate: 7.0,
+                    drive: 0.8,
+                    level: 8.8,
+                    pedalNote: "Usa el pedal DIRT con Drive casi a cero (0.8) y Level alto (8.8) para endurecer el ataque de púa en la 6ª cuerda.",
+                    ampName: "Archetype Gojira — Amp 3 (Hot / Lead)",
+                    ampChannel: "Cabezal 3 (High-Gain Tight)",
+                    gain: 6.8, bass: 5.8, mid: 3.0, treble: 7.8, presence: 8.2, master: 5.5,
+                    ampNote: "Baja los medios a 3.0 y sube Presence a 8.2 para acercar las válvulas de Gojira al carácter afilado de transistores.",
+                    cabName: "Cab 3 (4x12 Modern V30)",
+                    mic1: "Dynamic 57 (Pos: 0.14 • Dist: 0.0)",
+                    mic2: "Condenser 414 (Pos: 0.25 • Dist: 0.1)",
+                    cabNote: "El SM57 pegado al centro del altavoz te da la mordida metálica de púa.",
+                    fxBadge: "Chorus Mix 10% (Doubler) • Reverb OFF",
+                    eqBands: [
+                        { freq: "65Hz", db: -2.0 }, { freq: "125Hz", db: 3.2 }, { freq: "250Hz", db: -1.5 },
+                        { freq: "500Hz", db: -4.8 }, { freq: "1kHz", db: 2.5 }, { freq: "2kHz", db: 4.5 }, { freq: "4kHz", db: 3.5 }
+                    ],
+                    eqNote: "Curva en V: recorta 500 Hz (-4.8 dB) y empuja 2 kHz (+4.5 dB) para el chasquido de la púa."
+                },
+                amplitubeRig: {
+                    pedalName: "Gate + Parametric Boost / Dime Wah",
+                    pedalActive: true,
+                    gate: 7.4,
+                    drive: 1.2,
+                    level: 9.0,
+                    pedalNote: "Empuja la entrada del cabezal con Level en 9.0 y una puerta de ruido rápida para cortar el zumbido entre notas.",
+                    ampName: "Darrell CFH 100W (Randall RG100ES) o Solid State Lead",
+                    ampChannel: "Canal High-Gain + Boost ON",
+                    gain: 8.5, bass: 6.8, mid: 2.6, treble: 8.4, presence: 8.5, master: 6.0,
+                    ampNote: "Al ser un amplificador de transistores puedes subir el Gain a 8.5 manteniendo toda la definición del riff.",
+                    cabName: "4x12 Darrell 412 (Jaguar Speakers) o Brit V30",
+                    mic1: "Dynamic 57 (On-Axis • Borde cúpula)",
+                    mic2: "Condenser 414 (Off-Axis • -4 dB)",
+                    cabNote: "Combinación clásica de estudio de Terry Date: SM57 para filo y C414 para graves firmes.",
+                    fxBadge: "Flanger/Doubler sutil • Reverb OFF",
+                    eqBands: [
+                        { freq: "65Hz", db: -1.5 }, { freq: "125Hz", db: 3.5 }, { freq: "250Hz", db: -2.0 },
+                        { freq: "500Hz", db: -5.2 }, { freq: "1kHz", db: 2.2 }, { freq: "2kHz", db: 5.0 }, { freq: "4kHz", db: 4.0 }
+                    ],
+                    eqNote: "Esculpido idéntico al Furman PQ-3 de Dimebag: caída profunda en 500 Hz y pico agresivo en 2 kHz."
+                }
+            },
+            "stranded": {
+                songTitle: "Stranded",
+                artistName: "Gojira",
+                albumName: "Magma",
+                releaseYear: "2016",
+                bpm: "122 BPM",
+                genre: "Progressive Groove Metal",
+                sonicSummary: "El sonido insignia de Joe Duplantier en el álbum Magma: densidad masiva en graves, medios rugientes con grano tipo 5150 III y el famoso efecto pitch-whammy subiendo una octava en el riff del estribillo.",
+                theme: { accent: "#f59e0b", secondary: "#ea580c", ambient1: "#3b1d06", ambient2: "#171717" },
+                tuning: {
+                    name: "D Standard",
+                    strings: ["D2", "G2", "C3", "F3", "A3", "D4"],
+                    explanation: "Afinación en Re Estándar (D-G-C-F-A-D), la afinación principal de Gojira. Todas las cuerdas bajan 1 tono completo.",
+                    transposeTip: "En Archetype: Gojira X pon el knob 'Transpose' en -2 si tu guitarra está en E Standard, y activa el pedal 'WOW' (Whammy) para los chillidos agudos de una octava."
+                },
+                difficulty: {
+                    badge: "Accesible y Muy Satisfactorio • Precisión de Deslizamiento",
+                    riffScore: 5.5,
+                    soloScore: 6.0,
+                    challenge: "Es uno de los mejores temas de Gojira para dominar el peso de la mano derecha: requiere deslizar acordes de quinta limpios, controlar el palm-mute sincopado y coordinar el rake (barrido seco de cuerdas muteadas) antes de cada nota aguda.",
+                    steps: [
+                        "1. El 'Rake' percusivo: Antes de tocar los trastes agudos del riff, tapa las cuerdas con la mano izquierda y rasguea en seco para lograr ese golpe percusivo tan típico de Gojira.",
+                        "2. Palm-Mute firme: En la sección principal golpea hacia abajo (downpicking) con decisión en la 6ª y 5ª cuerda.",
+                        "3. Sincroniza el Whammy: Si no tienes pedal de expresión físico, automatiza el pedal 'WOW' en una pista de Reaper para los saltos de octava."
+                    ],
+                    tabNote: "La tablatura en Songsterr está perfectamente sincronizada en D Standard."
+                },
+                winnerPlugin: "gojira",
+                winnerTitle: "Plugin Ideal: Neural DSP Archetype: Gojira X",
+                winnerReason: "Literalmente este plugin fue creado junto a Joe Duplantier modelando su amplificador y su pedal Whammy ('WOW' + 'OCT') usado en Stranded.",
+                reaperSteps: [
+                    "Inserta Archetype: Gojira X en tu pista y selecciona el Cabezal 2 (Rust) o Cabezal 3 (Hot).",
+                    "Para la parte aguda del riff, asigna un envolvente de automatización en Reaper al pedal 'WOW' en modo 'Fatso' (+1 octava).",
+                    "Dobla la guitarra (graba una toma a la izquierda y otra a la derecha) si quieres que suene gigante como el disco."
+                ],
+                gojiraRig: {
+                    pedalName: "Pedal 'WOW' (Pitch) + 'DIRT' Boost",
+                    pedalActive: true,
+                    gate: 6.5,
+                    drive: 1.5,
+                    level: 8.0,
+                    pedalNote: "Activa el pedal DIRT con poco Drive (1.5) y activa el pedal WOW en modo 'Fatso' cuando toques el riff agudo.",
+                    ampName: "Archetype Gojira — Amp 2 (Rust) o Amp 3 (Hot)",
+                    ampChannel: "Cabezal 2 (Crunch Pesado Magma)",
+                    gain: 6.2, bass: 6.4, mid: 6.5, treble: 6.8, presence: 6.6, master: 6.0,
+                    ampNote: "El secreto de Gojira es NO subir demasiado el Gain (6.2) y mantener los medios altos (6.5) para que cada cuerda suene gigante.",
+                    cabName: "Cab 2 (Gojira Signature 4x12)",
+                    mic1: "Dynamic 57 (Pos: 0.22 • Dist: 0.0)",
+                    mic2: "Ribbon 160 (Pos: 0.35 • Dist: 0.1)",
+                    cabNote: "El micrófono de cinta (Ribbon 160) aporta el peso orgánico del álbum Magma.",
+                    fxBadge: "Pedal WOW ON en riff agudo • Reverb OFF",
+                    eqBands: [
+                        { freq: "65Hz", db: -1.0 }, { freq: "125Hz", db: 2.0 }, { freq: "250Hz", db: 0.5 },
+                        { freq: "500Hz", db: 1.0 }, { freq: "1kHz", db: 1.5 }, { freq: "2kHz", db: 2.0 }, { freq: "4kHz", db: 1.0 }
+                    ],
+                    eqNote: "Ecualización muy natural y equilibrada con un ligero empuje en 125 Hz y 2 kHz."
+                },
+                amplitubeRig: {
+                    pedalName: "Whammy Pitch + T-Rex Overdrive",
+                    pedalActive: true,
+                    gate: 6.5,
+                    drive: 1.8,
+                    level: 8.2,
+                    pedalNote: "Coloca un pedal Pitch Shifter / Whammy al inicio de la cadena seguido de un Overdrive tipo Tube Screamer.",
+                    ampName: "5150 III / SJH 100 (EVH Emulation)",
+                    ampChannel: "Canal Azul (Crunch High-Gain)",
+                    gain: 6.5, bass: 6.5, mid: 6.2, treble: 6.8, presence: 6.5, master: 6.0,
+                    ampNote: "Usa el canal intermedio/azul de un 5150 para lograr esa pegada percusiva sin exceso de compresión.",
+                    cabName: "4x12 Metal V30",
+                    mic1: "Dynamic 57 (On-Axis)",
+                    mic2: "Ribbon 160 (Off-Axis)",
+                    cabNote: "Mezcla el SM57 con el Ribbon 160 al 50% para un cuerpo denso.",
+                    fxBadge: "Pitch Whammy +1 Oct • Delay OFF",
+                    eqBands: [
+                        { freq: "65Hz", db: -1.0 }, { freq: "125Hz", db: 2.2 }, { freq: "250Hz", db: 0.0 },
+                        { freq: "500Hz", db: 1.2 }, { freq: "1kHz", db: 1.5 }, { freq: "2kHz", db: 2.2 }, { freq: "4kHz", db: 1.0 }
+                    ],
+                    eqNote: "Mantén los medios presentes en 500 Hz y 1 kHz para conservar el rugido orgánico."
+                }
+            },
+            "master of puppets": {
+                songTitle: "Master of Puppets",
+                artistName: "Metallica",
+                albumName: "Master of Puppets",
+                releaseYear: "1986",
+                bpm: "212 BPM",
+                genre: "Thrash Metal",
+                sonicSummary: "El sonido definitivo del Thrash de los 80 de James Hetfield: Mesa/Boogie Mark IIC+ conectado a etapas Marshall con una curva en 'V' profunda en el ecualizador gráfico y ataque de púa exclusivamente hacia abajo (downpicking).",
+                theme: { accent: "#ef4444", secondary: "#f97316", ambient1: "#450a0a", ambient2: "#1c1917" },
+                tuning: {
+                    name: "E Standard",
+                    strings: ["E2", "A2", "D3", "G3", "B3", "E4"],
+                    explanation: "Afinación estándar (Mi-La-Re-Sol-Si-Mi). No necesitas cambiar la afinación de tu guitarra.",
+                    transposeTip: "Tanto en guitarra de 6 como de 7 cuerdas (ignorando la 7ª cuerda grave), se toca directamente en afinación estándar sin necesidad de Transpose."
+                },
+                difficulty: {
+                    badge: "Resistencia Extrema de Mano Derecha (Downpicking)",
+                    riffScore: 8.8,
+                    soloScore: 9.0,
+                    challenge: "A velocidad real (212 BPM) tocando todo hacia abajo como Hetfield es una prueba física dura. Sin embargo, practicado a menor velocidad o alternando púa al principio es el mejor ejercicio que existe para ganar precisión.",
+                    steps: [
+                        "1. Empieza al 60% de velocidad (130 BPM): Toca el riff cromático inicial asegurando que las notas en la 6ª cuerda suenen secas con palm-mute y los acordes en trastes 2, 3 y 4 suenen abiertos.",
+                        "2. Movimiento pequeño de muñeca: No muevas todo el antebrazo al atacar hacia abajo; haz un giro corto y relajado desde la muñeca.",
+                        "3. Usa púa alternada si te tensas: Mientras ganas resistencia, alterna púa abajo-arriba en las partes rápidas para no sobrecargar el brazo."
+                    ],
+                    tabNote: "Sigue la pista 'James Hetfield - Rhythm Guitar' en Songsterr."
+                },
+                winnerPlugin: "amplitube",
+                winnerTitle: "Plugin Ideal: IK Multimedia AmpliTube 5 (MESA/Boogie Mark IIC+)",
+                winnerReason: "AmpliTube 5 cuenta con el modelo oficial MESA/Boogie Mark IIC+ con su ecualizador gráfico de 5 bandas integrado, que es exactamente el amplificador con el que se grabó el disco en 1986.",
+                reaperSteps: [
+                    "Usa una púa rígida (1.0 mm a 1.5 mm tipo Jazz III o Ultex) para que el ataque rápido no se retrase.",
+                    "Corta las frecuencias por debajo de 80 Hz en Reaper para que los golpes rápidos en la 6ª cuerda no retumben.",
+                    "Mantén el Gain moderado (alrededor de 7.0) para que cada nota cromática se distinga con claridad."
+                ],
+                gojiraRig: {
+                    pedalName: "Gate + Pedal 'DIRT' Boost",
+                    pedalActive: true,
+                    gate: 6.8,
+                    drive: 0.5,
+                    level: 8.5,
+                    pedalNote: "El pedal DIRT con Drive casi en 0 limpia el grave antes de entrar al cabezal 3.",
+                    ampName: "Archetype Gojira — Amp 3 (Hot)",
+                    ampChannel: "Cabezal 3 (Tight Thrash)",
+                    gain: 6.5, bass: 3.5, mid: 3.2, treble: 7.5, presence: 7.4, master: 5.8,
+                    ampNote: "En los amplis estilo Boogie/High-Gain, baja el Bass del preamplificador (3.5) y recupéralo después en la EQ gráfica.",
+                    cabName: "Cab 3 (4x12 Modern V30)",
+                    mic1: "Dynamic 57 (Pos: 0.18 • Dist: 0.0)",
+                    mic2: "Condenser 414 (Pos: 0.30 • Dist: 0.0)",
+                    cabNote: "Ataque directo al cono para máxima velocidad de respuesta en el palm-mute.",
+                    fxBadge: "Totalmente Seco (Dry) en Rítmica",
+                    eqBands: [
+                        { freq: "65Hz", db: 3.5 }, { freq: "125Hz", db: 4.0 }, { freq: "250Hz", db: -1.5 },
+                        { freq: "500Hz", db: -5.5 }, { freq: "1kHz", db: -2.0 }, { freq: "2kHz", db: 3.5 }, { freq: "4kHz", db: 4.0 }
+                    ],
+                    eqNote: "La clásica 'V' de Metallica: recorte fuerte en 500 Hz (-5.5 dB) y realce en 125 Hz y 2-4 kHz."
+                },
+                amplitubeRig: {
+                    pedalName: "Noise Gate + Tube Screamer (TS9)",
+                    pedalActive: true,
+                    gate: 7.0,
+                    drive: 0.5,
+                    level: 8.5,
+                    pedalNote: "Empuja el Mark IIC+ con Level alto y Drive mínimo para apretar los graves.",
+                    ampName: "MESA/Boogie Mark IIC+ o Mark IV",
+                    ampChannel: "Canal Lead (Pull Deep & Pull Bright ON)",
+                    gain: 7.5, bass: 2.5, mid: 3.5, treble: 8.0, presence: 7.2, master: 6.0,
+                    ampNote: "En los Mesa Mark es obligatorio poner el Bass muy bajo (2.5) en las perillas y subir los graves en el ecualizador gráfico.",
+                    cabName: "4x12 Recto Traditional V30 / Marshall 1960B",
+                    mic1: "Dynamic 57 (On-Axis)",
+                    mic2: "Condenser 414 (On-Axis)",
+                    cabNote: "Sonido cerrado y seco típico de Flemming Rasmussen en 1986.",
+                    fxBadge: "Sin Reverb ni Delay en Rítmica",
+                    eqBands: [
+                        { freq: "65Hz", db: 4.0 }, { freq: "125Hz", db: 4.5 }, { freq: "250Hz", db: -1.0 },
+                        { freq: "500Hz", db: -6.0 }, { freq: "1kHz", db: -1.5 }, { freq: "2kHz", db: 3.8 }, { freq: "4kHz", db: 4.2 }
+                    ],
+                    eqNote: "Dibuja la famosa 'V' en el ecualizador gráfico de 5/7 bandas hundiendo los 500-750 Hz."
+                }
+            },
+            "my own summer": {
+                songTitle: "My Own Summer (Shove It)",
+                artistName: "Deftones",
+                albumName: "Around the Fur",
+                releaseYear: "1997",
+                bpm: "74 BPM",
+                genre: "Alternative / Nu-Metal",
+                sonicSummary: "El riff hipnótico de Stephen Carpenter en su época de 6 cuerdas antes de pasar a 7 y 8: afinación Drop C#, contraste brutal entre el groove limpio/crunch de la estrofa y el muro de distorsión del estribillo.",
+                theme: { accent: "#fb923c", secondary: "#f43f5e", ambient1: "#3b1810", ambient2: "#18181b" },
+                tuning: {
+                    name: "Drop C# (Db)",
+                    strings: ["C#2", "G#2", "C#3", "F#3", "A#3", "D#4"],
+                    explanation: "Baja toda la guitarra medio tono (Eb Standard) y baja la 6ª cuerda un tono adicional hasta Do sostenido (C#).",
+                    transposeTip: "Pon tu guitarra en Drop D (solo bajando la 6ª cuerda a Re) y ajusta el Transpose de Gojira X en -1 semitono. ¡Es la forma más rápida!"
+                },
+                difficulty: {
+                    badge: "Ideal para Empezar • Muy Rítmico y Gratificante",
+                    riffScore: 3.8,
+                    soloScore: 3.5,
+                    challenge: "Es una de las canciones más agradecidas y divertidas para tocar desde el primer día: tempo lento (74 BPM), sin solos complicados y con acordes de quinta de un solo dedo en el estribillo.",
+                    steps: [
+                        "1. El riff inicial en la 4ª y 3ª cuerda: Toca la frase melódica con fluidez dejando que las notas respiren sin apresurarte.",
+                        "2. Acordes de 1 dedo en Drop C#: En el estribillo, como estás en afinación Drop, pon un solo dedo haciendo cejilla en las cuerdas 6ª, 5ª y 4ª en el mismo traste.",
+                        "3. Silencio antes del grito: Practica cortar de golpe todas las cuerdas con ambas manos justo en las pausas del estribillo."
+                    ],
+                    tabNote: "Tablatura muy sencilla y fiel en Songsterr en Drop C#."
+                },
+                winnerPlugin: "gojira",
+                winnerTitle: "Plugin Ideal: Neural DSP Archetype: Gojira X",
+                winnerReason: "El Cabezal 3 (Hot) de Gojira X entrega ese muro de graves moderno y denso de los 90/2000 en un segundo, y su Transpose permite bajar a Drop C# sin tocar las clavijas.",
+                reaperSteps: [
+                    "Afina tu 6ª cuerda en Drop D y pon el Transpose de Gojira X en -1 semitono.",
+                    "Para la intro puedes bajar un poco el volumen de tu guitarra para limpiar el sonido y subirlo al 10 en el estribillo.",
+                    "Mantén los graves generosos para que los acordes abiertos en Drop C# llenen toda la habitación."
+                ],
+                gojiraRig: {
+                    pedalName: "Gate + Pedal 'DIRT' Boost",
+                    pedalActive: true,
+                    gate: 5.8,
+                    drive: 1.0,
+                    level: 7.8,
+                    pedalNote: "No cierres demasiado el Noise Gate (5.8) para que el riff inicial no se corte antes de tiempo.",
+                    ampName: "Archetype Gojira — Amp 3 (Hot)",
+                    ampChannel: "Cabezal 3 (Heavy Wall of Sound)",
+                    gain: 7.0, bass: 7.0, mid: 4.5, treble: 7.0, presence: 6.8, master: 6.2,
+                    ampNote: "Sube el Bass a 7.0 para conseguir ese rugido pesado de Terry Date en Around the Fur.",
+                    cabName: "Cab 3 (4x12 Modern V30)",
+                    mic1: "Dynamic 57 (Pos: 0.25 • Dist: 0.0)",
+                    mic2: "Ribbon 160 (Pos: 0.40 • Dist: 0.1)",
+                    cabNote: "Combina SM57 y Ribbon 160 para unos graves redondos y cálidos.",
+                    fxBadge: "Sin efectos en estribillo • Reverb muy sutil en intro",
+                    eqBands: [
+                        { freq: "65Hz", db: 1.5 }, { freq: "125Hz", db: 3.0 }, { freq: "250Hz", db: 0.0 },
+                        { freq: "500Hz", db: -2.5 }, { freq: "1kHz", db: 1.0 }, { freq: "2kHz", db: 2.5 }, { freq: "4kHz", db: 2.0 }
+                    ],
+                    eqNote: "Realce cálido en 125 Hz (+3.0 dB) y ligero recorte en 500 Hz."
+                },
+                amplitubeRig: {
+                    pedalName: "Gate + Overdrive Boost",
+                    pedalActive: true,
+                    gate: 5.8,
+                    drive: 1.2,
+                    level: 8.0,
+                    pedalNote: "Empuja suavemente la entrada del preamplificador.",
+                    ampName: "Marshall JMP-1 Preamp / Brit Silver o Dual Rectifier",
+                    ampChannel: "Canal OD2 (Modern High-Gain)",
+                    gain: 7.4, bass: 7.2, mid: 4.2, treble: 7.2, presence: 6.8, master: 6.0,
+                    ampNote: "Stephen Carpenter usaba un previo Marshall JMP-1 con etapa Mesa/Boogie: mucha pegada en graves y agudos abiertos.",
+                    cabName: "4x12 Brit 900 / V30",
+                    mic1: "Dynamic 57 (On-Axis)",
+                    mic2: "Condenser 414 (Off-Axis)",
+                    cabNote: "Equilibrio entre el peso de los 90 y claridad en el riff principal.",
+                    fxBadge: "Dry en rítmica",
+                    eqBands: [
+                        { freq: "65Hz", db: 1.5 }, { freq: "125Hz", db: 3.2 }, { freq: "250Hz", db: -0.5 },
+                        { freq: "500Hz", db: -2.8 }, { freq: "1kHz", db: 1.0 }, { freq: "2kHz", db: 2.8 }, { freq: "4kHz", db: 2.0 }
+                    ],
+                    eqNote: "Empuja 125 Hz y 2 kHz para que el riff inicial tenga filo y el estribillo tenga peso."
+                }
+            }
+        };
+
+        // Additional aliases for quick chips
+        CURATED_SONGS_DB["silvera"] = {
+            ...CURATED_SONGS_DB["stranded"],
+            songTitle: "Silvera",
+            bpm: "110 BPM",
+            sonicSummary: "Riff principal con tapping a una mano y palm-muting ultra percusivo en D Standard del álbum Magma.",
+            difficulty: {
+                badge: "Intermedio • Tapping Rítmico y Groove",
+                riffScore: 6.6,
+                soloScore: 6.8,
+                challenge: "El riff de entrada alterna golpes secos en la 6ª cuerda al aire con notas ligadas (hammer-ons y pull-offs) rápidas que exigen buena sincronización entre ambas manos.",
+                steps: [
+                    "1. Practica primero solo el patrón de la mano izquierda (ligados en la 5ª y 4ª cuerda) sin usar la púa.",
+                    "2. Añade los golpes en la 6ª cuerda al aire con palm-mute manteniendo un pulso constante a 80 BPM.",
+                    "3. En el solo en tapping, usa el borde de tu mano derecha para silenciar las cuerdas graves mientras haces tapping en la 1ª y 2ª cuerda."
+                ],
+                tabNote: "Usa la tablatura de Songsterr en D Standard."
+            }
+        };
+
+        CURATED_SONGS_DB["laid to rest"] = {
+            ...CURATED_SONGS_DB["walk"],
+            songTitle: "Laid to Rest",
+            artistName: "Lamb of God",
+            albumName: "Ashes of the Wake",
+            releaseYear: "2004",
+            bpm: "97 BPM (Compás 6/8)",
+            genre: "New Wave of American Heavy Metal",
+            sonicSummary: "Tono Mesa/Boogie Mark IV ultra seco, articulado y con medios agresivos de Mark Morton y Willie Adler.",
+            theme: { accent: "#84cc16", secondary: "#eab308", ambient1: "#1a2e05", ambient2: "#18181b" },
+            tuning: {
+                name: "Drop D",
+                strings: ["D2", "A2", "D3", "G3", "B3", "E4"],
+                explanation: "Solo tienes que bajar la 6ª cuerda de Mi (E) a Re (D). El resto de cuerdas se quedan en afinación estándar.",
+                transposeTip: "Solo toma 10 segundos bajar la 6ª cuerda a Re comparándola con tu 4ª cuerda al aire."
+            },
+            difficulty: {
+                badge: "Exigente • Saltos de Cuerda y Estiramiento de Dedos",
+                riffScore: 7.8,
+                soloScore: 8.2,
+                challenge: "Es un gran reto para desarrollar agilidad en la mano izquierda: combina saltos entre la 6ª, 5ª y 4ª cuerda con acordes rápidos en Drop D.",
+                steps: [
+                    "1. Divide el riff principal en 2 frases cortas y practícalas a 65 BPM usando el dedo meñique sin levantar demasiado los demás dedos.",
+                    "2. Mantén la púa alternada (abajo-arriba) para no cansarte en los tresillos.",
+                    "3. Baja un poco la ganancia del amplificador: este riff suena mucho más pesado cuando cada nota se entiende limpia."
+                ],
+                tabNote: "Versión oficial en Drop D en Songsterr."
+            }
+        };
+
+        CURATED_SONGS_DB["7empest"] = {
+            ...CURATED_SONGS_DB["laid to rest"],
+            songTitle: "7empest",
+            artistName: "Tool",
+            albumName: "Fear Inoculum",
+            releaseYear: "2019",
+            bpm: "130 BPM (Polirritmia 21/16)",
+            genre: "Progressive Metal",
+            sonicSummary: "El sonido orgánico y tridimensional de Adam Jones: combinación de cabezal Diezel VH4 y Marshall Super Bass sin pedales de overdrive delante, puro músculo de amplificador.",
+            theme: { accent: "#38bdf8", secondary: "#6366f1", ambient1: "#0c243c", ambient2: "#111118" },
+            difficulty: {
+                badge: "Avanzado • Compases Irregulares y Técnica Pull-Through",
+                riffScore: 8.0,
+                soloScore: 8.8,
+                challenge: "La dificultad reside en contar el compás irregular (grupos de 5, 5, 5 y 6 notas) y dominar el 'pull-off' percusivo de Adam Jones en Drop D.",
+                steps: [
+                    "1. Escucha la batería de Danny Carey y cuenta el riff en bloques cortos antes de intentar tocarlo de corrido.",
+                    "2. Practica el 'Jambi pull-through': tira del dedo índice hacia abajo en la 6ª cuerda para que suene tanto el pull-off como el golpe de púa.",
+                    "3. Usa el volumen de tu guitarra para limpiar la intro con Delay antes de entrar al riff pesado."
+                ],
+                tabNote: "Afinación Drop D (D-A-D-G-B-E) en Songsterr."
+            }
+        };
+
+        CURATED_SONGS_DB["nemesis"] = {
+            ...CURATED_SONGS_DB["stranded"],
+            songTitle: "Nemesis",
+            artistName: "Arch Enemy",
+            albumName: "Doomsday Machine",
+            releaseYear: "2005",
+            bpm: "190 BPM",
+            genre: "Melodic Death Metal",
+            sonicSummary: "Tono Peavey 5150 / Marshall de Michael Amott producido por Andy Sneap: melodías dobladas con sustain infinito y rítmica en Do Estándar.",
+            theme: { accent: "#e11d48", secondary: "#9333ea", ambient1: "#3f0919", ambient2: "#160b24" },
+            tuning: {
+                name: "C Standard",
+                strings: ["C2", "F2", "A#2", "D#3", "G3", "C4"],
+                explanation: "Todas las cuerdas bajan 2 tonos completos (C-F-A#-D#-G-C).",
+                transposeTip: "Con cuerdas normales de 6 cuerdas quedarán muy flojas en C Standard; pon el Transpose de Gojira X en -4 semitonos desde E Standard (o -2 desde D Standard)."
+            },
+            difficulty: {
+                badge: "Intermedio • Melodías Épicas y Octavas",
+                riffScore: 6.4,
+                soloScore: 8.5,
+                challenge: "La melodía principal y los acordes de octava del estribillo son muy accesibles y suenan increíbles; solo el riff rápido de la estrofa requiere velocidad de púa alternada.",
+                steps: [
+                    "1. Empieza aprendiendo la melodía inicial y los acordes de octava del estribillo: te saldrán rápido y te motivarán muchísimo.",
+                    "2. En los acordes de octava (ej. 5ª y 3ª cuerda), usa la yema de tu dedo índice para rozar y callar la 4ª cuerda intermedia.",
+                    "3. Practica el riff rápido de la estrofa al 70% de velocidad con púa alternada."
+                ],
+                tabNote: "Tablatura en C Standard en Songsterr."
+            },
+            winnerPlugin: "gojira",
+            winnerTitle: "Plugin Ideal: Neural DSP Archetype: Gojira X",
+            winnerReason: "El Cabezal 3 (Hot) de Gojira X es una evolución directa del circuito 5150 usado por Andy Sneap en Doomsday Machine, y su Transpose baja a C Standard sin desafinar."
+        };
+
+        // State
+        let currentSongData = CURATED_SONGS_DB["walk"];
+        let activePlugin = "amplitube";
+        const defaultCanvasKey = ""; // Injected automatically by Canvas runtime if available
+
+        // ============================================================================
+        // API KEY & STANDALONE PORTABILITY HELPERS
+        // ============================================================================
+        function getSavedUserKey() {
+            try {
+                return localStorage.getItem("toneforge_gemini_api_key") || "";
+            } catch (e) {
+                return "";
+            }
+        }
+
+        function updateApiBadgeUI() {
+            const dot = document.getElementById("apiStatusDot");
+            const userKey = getSavedUserKey();
+            const inputEl = document.getElementById("customApiKeyInput");
+            if (inputEl && userKey) inputEl.value = userKey;
+
+            if (userKey) {
+                dot.className = "w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_8px_#34d399]";
+            } else {
+                dot.className = "w-2 h-2 rounded-full bg-amber-400";
+            }
+        }
+
+        function saveUserApiKey() {
+            const val = document.getElementById("customApiKeyInput").value.trim();
+            try {
+                if (val) {
+                    localStorage.setItem("toneforge_gemini_api_key", val);
+                    showToast("Clave API personal guardada en este dispositivo");
+                }
+            } catch (e) {}
+            updateApiBadgeUI();
+            closeModal("portabilityModal");
+        }
+
+        function clearUserApiKey() {
+            try {
+                localStorage.removeItem("toneforge_gemini_api_key");
+            } catch (e) {}
+            document.getElementById("customApiKeyInput").value = "";
+            updateApiBadgeUI();
+            showToast("Clave eliminada");
+        }
+
+        function openModal(id) {
+            const el = document.getElementById(id);
+            el.classList.remove("hidden");
+            el.classList.add("flex");
+        }
+
+        function closeModal(id) {
+            const el = document.getElementById(id);
+            el.classList.add("hidden");
+            el.classList.remove("flex");
+        }
+
+        function showToast(text) {
+            const toast = document.getElementById("appleToast");
+            document.getElementById("appleToastText").textContent = text;
+            toast.classList.remove("hidden");
+            toast.classList.add("flex");
+            setTimeout(() => {
+                toast.classList.add("hidden");
+                toast.classList.remove("flex");
+            }, 3400);
+        }
+
+        // Download complete single-file HTML for any PC or Mobile device
+        function downloadStandaloneApp() {
+            const htmlContent = "<!DOCTYPE html>\n" + document.documentElement.outerHTML;
+            const blob = new Blob([htmlContent], { type: "text/html;charset=utf-8" });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = "ToneForge-Apple-Studio.html";
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            showToast("App descargada: ábrela en cualquier PC o móvil");
+        }
+
+        // ============================================================================
+        // PROCEDURAL SVG ARTWORK GENERATOR (Zero 403 errors if offline or blocked)
+        // ============================================================================
+        function createAppleFallbackArtwork(title, artist, accentHex, bgHex) {
+            const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="600" height="600" viewBox="0 0 600 600">
+                <defs>
+                    <linearGradient id="g" x1="0%" y1="0%" x2="100%" y2="100%">
+                        <stop offset="0%" stop-color="${bgHex || '#1c1917'}"/>
+                        <stop offset="55%" stop-color="#09090b"/>
+                        <stop offset="100%" stop-color="${accentHex || '#ff6933'}"/>
+                    </linearGradient>
+                </defs>
+                <rect width="600" height="600" fill="url(#g)"/>
+                <circle cx="300" cy="300" r="210" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="1.5"/>
+                <circle cx="300" cy="300" r="145" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="1.5"/>
+                <circle cx="300" cy="300" r="42" fill="rgba(255,255,255,0.1)"/>
+                <text x="48" y="495" fill="rgba(255,255,255,0.55)" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="24" font-weight="600">${(artist || '').replace(/[<>&"']/g, '')}</text>
+                <text x="48" y="538" fill="#ffffff" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="36" font-weight="800">${(title || '').replace(/[<>&"']/g, '')}</text>
+            </svg>`;
+            return "data:image/svg+xml;utf8," + encodeURIComponent(svg);
+        }
+
+        // Fetch official Apple Music / iTunes cover & 30s audio preview
+        const metaCache = new Map();
+        function jsonp(url, ms = 8000) {
+            return new Promise((resolve, reject) => {
+                const cb = "tf_cb_" + Math.random().toString(36).slice(2);
+                const sc = document.createElement("script");
+                const done = (v, err) => { clearTimeout(t); delete window[cb]; sc.remove(); err ? reject(err) : resolve(v); };
+                const t = setTimeout(() => done(null, new Error("timeout")), ms);
+                window[cb] = d => done(d);
+                sc.onerror = () => done(null, new Error("error"));
+                sc.src = url + (url.includes("?") ? "&" : "?") + "callback=" + cb;
+                document.head.appendChild(sc);
+            });
+        }
+        async function searchTracks(query) {
+            const q = encodeURIComponent(query);
+            try {
+                const j = await jsonp(`https://itunes.apple.com/search?term=${q}&entity=song&limit=10`);
+                const l = (j.results || []).filter(r => r.artworkUrl100).map(r => ({ artist: r.artistName, title: r.trackName, artwork: r.artworkUrl100.replace("100x100bb", "600x600bb"), preview: r.previewUrl || null, year: r.releaseDate ? r.releaseDate.substring(0, 4) : null }));
+                if (l.length) return l;
+            } catch (e) {}
+            try {
+                const j = await jsonp(`https://api.deezer.com/search?q=${q}&limit=10&output=jsonp`);
+                return (j.data || []).filter(r => r.album && r.album.cover_big).map(r => ({ artist: r.artist.name, title: r.title, artwork: r.album.cover_big, preview: r.preview || null, year: null }));
+            } catch (e) {}
+            return [];
+        }
+        async function fetchItunesMetadata(query, hint) {
+            const ck = (hint ? hint.artist + "|" + hint.title : query).toLowerCase();
+            if (metaCache.has(ck)) return metaCache.get(ck);
+            const list = await searchTracks(query);
+            if (!list.length) return null;
+            const norm = x => (x || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "");
+            let pick = list.find(r => r.preview) || list[0];
+            if (hint) {
+                const a = norm(hint.artist), t = norm(hint.title);
+                const okA = r => norm(r.artist).includes(a) || a.includes(norm(r.artist));
+                const okT = r => norm(r.title).includes(t) || t.includes(norm(r.title));
+                pick = list.find(r => okA(r) && okT(r) && r.preview) || list.find(r => okA(r) && okT(r)) || list.find(r => okA(r) && r.preview) || list.find(okA) || pick;
+            }
+            const meta = { artwork: pick.artwork, previewUrl: pick.preview, year: pick.year };
+            metaCache.set(ck, meta);
+            return meta;
+        }
+
+        // Audio Preview Controls
+        const audioEl = document.getElementById("itunesAudio");
+        function toggleAudioPreview() {
+            if (!audioEl.src) return;
+            const icon = document.getElementById("previewPlayIcon");
+            const label = document.getElementById("previewPlayLabel");
+            const eq = document.getElementById("previewEqBars");
+
+            if (audioEl.paused) {
+                audioEl.play();
+                icon.textContent = "⏸";
+                label.textContent = "Pausar";
+                eq.classList.remove("hidden");
+                eq.classList.add(" inline-flex");
+            } else {
+                audioEl.pause();
+                icon.textContent = "▶";
+                label.textContent = "Escuchar Muestra";
+                eq.classList.add("hidden");
+            }
+        }
+
+        audioEl.addEventListener("play", () => document.getElementById("coverWrap").classList.add("playing"));
+        audioEl.addEventListener("pause", () => document.getElementById("coverWrap").classList.remove("playing"));
+        audioEl.addEventListener("ended", () => {
+            document.getElementById("coverWrap").classList.remove("playing");
+            document.getElementById("previewPlayIcon").textContent = "▶";
+            document.getElementById("previewPlayLabel").textContent = "Escuchar Muestra";
+            document.getElementById("previewEqBars").classList.add("hidden");
+        });
+
+        // ============================================================================
+        // LOGIC PRO X VECTOR KNOB & FADERS RENDERERS
+        // ============================================================================
+        function renderLogicKnob(label, value, colorHex) {
+            const val = Math.max(0, Math.min(10, Number(value) || 0));
+            const deg = -132 + (val / 10) * 264;
+            const dashOffset = 176 - (val / 10) * 132;
+
+            return `
+                <div class="flex flex-col items-center p-2.5 rounded-xl bg-white/[0.025] border border-white/[0.05]">
+                    <div class="relative w-14 h-14 flex items-center justify-center">
+                        <svg class="w-14 h-14 -rotate-90" viewBox="0 0 64 64">
+                            <circle cx="32" cy="32" r="25" fill="none" stroke="rgba(255,255,255,0.09)" stroke-width="3.8" stroke-dasharray="132 176" stroke-dashoffset="-22" stroke-linecap="round"/>
+                            <circle cx="32" cy="32" r="25" fill="none" stroke="${colorHex}" stroke-width="3.8" stroke-dasharray="132 176" stroke-dashoffset="${dashOffset}" stroke-linecap="round"/>
+                        </svg>
+                        <div class="absolute w-9 h-9 rounded-full logic-anodized-knob border border-white/15 flex items-center justify-center transition-transform duration-500"
+                             style="transform: rotate(${deg}deg)">
+                            <span class="w-0.5 h-3 bg-white rounded-full -translate-y-2"></span>
+                        </div>
+                    </div>
+                    <span class="sf-mono text-[12px] font-semibold text-white mt-1">${val.toFixed(1)}</span>
+                    <span class="text-[10px] font-medium text-white/45 mt-0.5 text-center truncate w-full">${label}</span>
+                </div>
+            `;
+        }
+
+        function renderEqFader(freq, dbVal, accentHex) {
+            const db = Math.max(-12, Math.min(12, Number(dbVal) || 0));
+            const pct = 50 + (db / 12) * 38;
+            const textDb = db > 0 ? `+${db.toFixed(1)}` : db.toFixed(1);
+            const capColor = db > 0.3 ? accentHex : (db < -0.3 ? "#38bdf8" : "#a1a1aa");
+
+            return `
+                <div class="flex flex-col items-center justify-between h-full py-1">
+                    <span class="sf-mono text-[10px] ${db !== 0 ? 'text-white font-semibold' : 'text-white/40'}">${textDb}</span>
+                    <div class="relative w-1.5 flex-grow my-1.5 bg-white/10 rounded-full">
+                        <div class="absolute w-3.5 h-[1px] bg-white/20 left-1/2 -translate-x-1/2 top-1/2"></div>
+                        <div class="absolute w-4 h-2.5 rounded-full left-1/2 -translate-x-1/2 shadow-md transition-all duration-500"
+                             style="bottom: calc(${pct}% - 5px); background: ${capColor}; border: 0.5px solid rgba(255,255,255,0.7);"></div>
+                    </div>
+                    <span class="sf-mono text-[10px] text-white/45">${freq}</span>
+                </div>
+            `;
+        }
+
+        // Switch between Archetype Gojira X and AmpliTube 5
+        function switchPlugin(pluginKey) {
+            activePlugin = pluginKey;
+            const btnGojira = document.getElementById("segBtnGojira");
+            const btnAmplitube = document.getElementById("segBtnAmplitube");
+
+            if (pluginKey === "gojira") {
+                btnGojira.classList.add("active");
+                btnAmplitube.classList.remove("active");
+            } else {
+                btnAmplitube.classList.add("active");
+                btnGojira.classList.remove("active");
+            }
+
+            const rig = pluginKey === "gojira" ? currentSongData.gojiraRig : currentSongData.amplitubeRig;
+            const accent = pluginKey === "gojira" ? "#c084fc" : (currentSongData.theme?.accent || "#ff6933");
+
+            document.getElementById("slotPedalName").textContent = rig.pedalName;
+            const stateEl = document.getElementById("slotPedalState");
+            stateEl.textContent = rig.pedalActive ? "ON" : "BYPASS";
+            stateEl.className = rig.pedalActive
+                ? "sf-mono text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300"
+                : "sf-mono text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-white/10 text-white/50";
+
+            document.getElementById("knobsPreampGrid").innerHTML = [
+                renderLogicKnob("Noise Gate", rig.gate, accent),
+                renderLogicKnob("Drive", rig.drive, accent),
+                renderLogicKnob("Level", rig.level, accent)
+            ].join("");
+            document.getElementById("slotPedalNote").textContent = rig.pedalNote;
+
+            document.getElementById("slotAmpName").textContent = rig.ampName;
+            document.getElementById("slotAmpChannel").textContent = rig.ampChannel;
+            document.getElementById("knobsAmpGrid").innerHTML = [
+                renderLogicKnob("Gain", rig.gain, accent),
+                renderLogicKnob("Bass", rig.bass, accent),
+                renderLogicKnob("Mid", rig.mid, accent),
+                renderLogicKnob("Treble", rig.treble, accent),
+                renderLogicKnob("Presence", rig.presence, accent),
+                renderLogicKnob("Master", rig.master, accent)
+            ].join("");
+            document.getElementById("slotAmpNote").textContent = rig.ampNote;
+
+            document.getElementById("slotCabName").textContent = rig.cabName;
+            document.getElementById("slotMic1").textContent = rig.mic1;
+            document.getElementById("slotMic2").textContent = rig.mic2;
+            document.getElementById("slotCabNote").textContent = rig.cabNote;
+
+            document.getElementById("slotFxBadge").textContent = rig.fxBadge || "FX: Seco en Rítmica";
+            document.getElementById("eqFadersContainer").innerHTML = (rig.eqBands || [])
+                .map(b => renderEqFader(b.freq, b.db, accent))
+                .join("");
+            document.getElementById("slotEqNote").textContent = rig.eqNote;
+        }
+
+        // Render Complete Song Analysis to the Apple UI
+        function renderSongAnalysis(data, itunesMeta) {
+            currentSongData = data;
+            const root = document.documentElement;
+            const accent = data.theme?.accent || "#ff6933";
+            const secondary = data.theme?.secondary || "#ff2d55";
+            const amb1 = data.theme?.ambient1 || "#3b1406";
+            const amb2 = data.theme?.ambient2 || "#1c0b08";
+
+            root.style.setProperty("--accent", accent);
+            root.style.setProperty("--accent-secondary", secondary);
+            root.style.setProperty("--ambient-1", amb1);
+            root.style.setProperty("--ambient-2", amb2);
+
+            const svgFallback = createAppleFallbackArtwork(data.songTitle, data.artistName, accent, amb1);
+            const coverSrc = (itunesMeta && itunesMeta.artwork) ? itunesMeta.artwork : svgFallback;
+
+            const heroArt = document.getElementById("heroArtwork");
+            heroArt.src = coverSrc;
+            heroArt.onerror = () => { heroArt.src = svgFallback; };
+            document.getElementById("ambientArtworkBlur").style.backgroundImage = `url("${coverSrc}")`;
+
+            const playBtn = document.getElementById("previewPlayBtn");
+            if (itunesMeta && itunesMeta.previewUrl) {
+                audioEl.src = itunesMeta.previewUrl;
+                playBtn.classList.remove("hidden");
+                document.getElementById("previewPlayIcon").textContent = "▶";
+                document.getElementById("previewPlayLabel").textContent = "Escuchar Muestra";
+                document.getElementById("previewEqBars").classList.add("hidden");
+            } else {
+                audioEl.src = "";
+                playBtn.classList.add("hidden");
+            }
+
+            // Hero Texts
+            document.getElementById("heroGenrePill").textContent = data.genre || "Metal / Rock";
+            document.documentElement.style.setProperty("--beat", Math.max(0.5, 120 / Math.max(40, Math.min(240, parseFloat(data.bpm) || 90))) + "s");
+            document.getElementById("heroYearPill").textContent = data.releaseYear || (itunesMeta?.year || "");
+            document.getElementById("heroBpmPill").textContent = data.bpm;
+            document.getElementById("heroTuningPill").textContent = data.tuning.name;
+            document.getElementById("heroTitle").textContent = data.songTitle;
+            document.getElementById("heroSubtitle").textContent = `${data.artistName} — ${data.albumName}`;
+            document.getElementById("heroSonicDescription").textContent = data.sonicSummary;
+
+            // Direct Links
+            const q = `${data.artistName} ${data.songTitle}`.trim();
+            document.getElementById("btnSongsterr").href = `https://www.songsterr.com/?pattern=${encodeURIComponent(q)}`;
+            document.getElementById("btnUltimateGuitar").href = `https://www.ultimate-guitar.com/search.php?search_type=title&value=${encodeURIComponent(q)}`;
+            document.getElementById("btnTutorial").href = `https://www.youtube.com/results?search_query=${encodeURIComponent(q + " guitar lesson how to play")}`;
+            document.getElementById("btnBacking").href = `https://www.youtube.com/results?search_query=${encodeURIComponent(q + " guitar backing track")}`;
+
+            // Playability & Practice Coach
+            document.getElementById("diffSummaryBadge").textContent = data.difficulty.badge;
+            document.getElementById("scoreRiffValue").innerHTML = `${Number(data.difficulty.riffScore).toFixed(1)} <span class="text-xs text-white/40">/ 10</span>`;
+            document.getElementById("scoreSoloValue").innerHTML = `${Number(data.difficulty.soloScore).toFixed(1)} <span class="text-xs text-white/40">/ 10</span>`;
+            document.getElementById("riffChallengeText").textContent = data.difficulty.challenge;
+            document.getElementById("tabWarningNote").textContent = data.difficulty.tabNote;
+
+            document.getElementById("practiceStepsList").innerHTML = (data.difficulty.steps || []).map(step => `
+                <div class="apple-material-inset rounded-xl p-3.5 text-[13px] text-white/80 leading-relaxed">
+                    ${step}
+                </div>
+            `).join("");
+
+            // Tuning & Strings
+            document.getElementById("tuningHeaderPill").textContent = data.tuning.name;
+            document.getElementById("tuningExplanationText").textContent = data.tuning.explanation;
+            document.getElementById("transposeTipText").textContent = data.tuning.transposeTip;
+
+            const labels = ["6ª", "5ª", "4ª", "3ª", "2ª", "1ª"];
+            const notes = data.tuning.strings || ["E2", "A2", "D3", "G3", "B3", "E4"];
+            document.getElementById("stringsGrid").innerHTML = notes.slice(0, 6).map((n, i) => `
+                <div class="flex flex-col items-center py-2.5 px-1 rounded-xl bg-black/35 border border-white/[0.07]">
+                    <span class="sf-mono text-[10px] text-white/40">${labels[i]}</span>
+                    <span class="sf-mono text-[15px] font-bold text-white mt-1">${n}</span>
+                </div>
+            `).join("");
+
+            // Winner Plugin Selection
+            const isGojiraWinner = (data.winnerPlugin || "").toLowerCase().includes("gojira");
+            document.getElementById("winnerPluginTitle").textContent = data.winnerTitle;
+            document.getElementById("winnerPluginReason").textContent = data.winnerReason;
+
+            document.getElementById("recPillGojira").classList.toggle("hidden", !isGojiraWinner);
+            document.getElementById("recPillAmplitube").classList.toggle("hidden", isGojiraWinner);
+
+            document.getElementById("reaperStepsGrid").innerHTML = (data.reaperSteps || []).map((st, idx) => `
+                <div class="p-3 rounded-xl bg-black/30 border border-white/[0.06] flex items-start gap-2.5">
+                    <span class="sf-mono text-[11px] font-bold px-2 py-0.5 rounded bg-white/10 text-white shrink-0">${idx + 1}</span>
+                    <span class="leading-relaxed">${st}</span>
+                </div>
+            `).join("");
+
+            switchPlugin(isGojiraWinner ? "gojira" : "amplitube");
+        }
+
+        function copyCurrentPreset() {
+            const rig = activePlugin === "gojira" ? currentSongData.gojiraRig : currentSongData.amplitubeRig;
+            const pluginLabel = activePlugin === "gojira" ? "Neural DSP Archetype: Gojira X" : "IK AmpliTube 5";
+            const text = [
+                `ToneForge — ${currentSongData.songTitle} (${currentSongData.artistName})`,
+                `Plugin: ${pluginLabel} | Afinación: ${currentSongData.tuning.name}`,
+                `Pre-Amp (${rig.pedalName}): Gate ${rig.gate} | Drive ${rig.drive} | Level ${rig.level}`,
+                `Cabezal (${rig.ampName}): Gain ${rig.gain} | Bass ${rig.bass} | Mid ${rig.mid} | Treble ${rig.treble} | Presence ${rig.presence} | Master ${rig.master}`,
+                `Cabina (${rig.cabName}): ${rig.mic1} + ${rig.mic2}`
+            ].join("\n");
+
+            const ta = document.createElement("textarea");
+            ta.value = text;
+            document.body.appendChild(ta);
+            ta.select();
+            try {
+                document.execCommand("copy");
+                showToast(`Ajustes de ${pluginLabel} copiados`);
+            } catch (e) {}
+            document.body.removeChild(ta);
+        }
+
+        // ============================================================================
+        // SEARCH HANDLER: INSTANT PRESET MATCH OR GEMINI API WITH 403 RECOVERY
+        // ============================================================================
+        function findCuratedMatch(rawQuery) {
+            const q = rawQuery.toLowerCase().trim();
+            if (q.includes("walk") || q.includes("pantera")) return CURATED_SONGS_DB["walk"];
+            if (q.includes("stranded")) return CURATED_SONGS_DB["stranded"];
+            if (q.includes("silvera")) return CURATED_SONGS_DB["silvera"];
+            if (q.includes("puppets") || q.includes("metallica")) return CURATED_SONGS_DB["master of puppets"];
+            if (q.includes("summer") || q.includes("shove it") || q.includes("deftones")) return CURATED_SONGS_DB["my own summer"];
+            if (q.includes("laid to rest") || q.includes("lamb of god")) return CURATED_SONGS_DB["laid to rest"];
+            if (q.includes("7empest") || q.includes("tempest") || q.includes("tool")) return CURATED_SONGS_DB["7empest"];
+            if (q.includes("nemesis") || q.includes("arch enemy")) return CURATED_SONGS_DB["nemesis"];
+            return null;
+        }
+
+        async function loadSongByQuery(queryText) {
+            document.getElementById("songInput").value = queryText;
+            await executeSongAnalysis(queryText);
+        }
+
+        const aiSystemInstruction = `Eres un ingeniero de mezcla en Reaper, especialista en Neural DSP Archetype: Gojira X e IK Multimedia AmpliTube 5, y profesor de guitarra sumamente claro.
+El usuario quiere saber cómo tocar una canción y cómo configurar su sonido exacto usando O BIEN Gojira X O BIEN AmpliTube 5 en Reaper.
+REGLAS:
+1. Calibra la puntuación del Riff Principal (1.0 a 10.0) con realismo para alguien que está construyendo su base en la guitarra: riffs que requieran micro-bends precisos, palm-mute muy limpio en alta ganancia o compases con mucho swing (como "Walk" de Pantera) deben puntuarse alrededor de 7.0-7.5/10 explicando paso a paso cómo colocar las manos, sin mencionar jamás el nivel del usuario.
+2. Elige cuál de los dos plugins ("gojira" o "amplitube") es el mejor para clavar el álbum original y da los valores exactos de 0.0 a 10.0 para AMBOS plugins.`;
+
+        const aiResponseSchema = {
+            type: "OBJECT",
+            properties: {
+                songTitle: { type: "STRING" },
+                artistName: { type: "STRING" },
+                albumName: { type: "STRING" },
+                releaseYear: { type: "STRING" },
+                bpm: { type: "STRING" },
+                genre: { type: "STRING" },
+                sonicSummary: { type: "STRING" },
+                theme: {
+                    type: "OBJECT",
+                    properties: {
+                        accent: { type: "STRING" },
+                        secondary: { type: "STRING" },
+                        ambient1: { type: "STRING" },
+                        ambient2: { type: "STRING" }
+                    },
+                    required: ["accent", "secondary", "ambient1", "ambient2"]
+                },
+                tuning: {
+                    type: "OBJECT",
+                    properties: {
+                        name: { type: "STRING" },
+                        strings: { type: "ARRAY", items: { type: "STRING" } },
+                        explanation: { type: "STRING" },
+                        transposeTip: { type: "STRING" }
+                    },
+                    required: ["name", "strings", "explanation", "transposeTip"]
+                },
+                difficulty: {
+                    type: "OBJECT",
+                    properties: {
+                        badge: { type: "STRING" },
+                        riffScore: { type: "NUMBER" },
+                        soloScore: { type: "NUMBER" },
+                        challenge: { type: "STRING" },
+                        steps: { type: "ARRAY", items: { type: "STRING" } },
+                        tabNote: { type: "STRING" }
+                    },
+                    required: ["badge", "riffScore", "soloScore", "challenge", "steps", "tabNote"]
+                },
+                winnerPlugin: { type: "STRING" },
+                winnerTitle: { type: "STRING" },
+                winnerReason: { type: "STRING" },
+                reaperSteps: { type: "ARRAY", items: { type: "STRING" } },
+                gojiraRig: {
+                    type: "OBJECT",
+                    properties: {
+                        pedalName: { type: "STRING" },
+                        pedalActive: { type: "BOOLEAN" },
+                        gate: { type: "NUMBER" },
+                        drive: { type: "NUMBER" },
+                        level: { type: "NUMBER" },
+                        pedalNote: { type: "STRING" },
+                        ampName: { type: "STRING" },
+                        ampChannel: { type: "STRING" },
+                        gain: { type: "NUMBER" },
+                        bass: { type: "NUMBER" },
+                        mid: { type: "NUMBER" },
+                        treble: { type: "NUMBER" },
+                        presence: { type: "NUMBER" },
+                        master: { type: "NUMBER" },
+                        ampNote: { type: "STRING" },
+                        cabName: { type: "STRING" },
+                        mic1: { type: "STRING" },
+                        mic2: { type: "STRING" },
+                        cabNote: { type: "STRING" },
+                        fxBadge: { type: "STRING" },
+                        eqBands: {
+                            type: "ARRAY",
+                            items: {
+                                type: "OBJECT",
+                                properties: { freq: { type: "STRING" }, db: { type: "NUMBER" } },
+                                required: ["freq", "db"]
+                            }
+                        },
+                        eqNote: { type: "STRING" }
+                    },
+                    required: ["pedalName", "pedalActive", "gate", "drive", "level", "pedalNote", "ampName", "ampChannel", "gain", "bass", "mid", "treble", "presence", "master", "ampNote", "cabName", "mic1", "mic2", "cabNote", "fxBadge", "eqBands", "eqNote"]
+                },
+                amplitubeRig: {
+                    type: "OBJECT",
+                    properties: {
+                        pedalName: { type: "STRING" },
+                        pedalActive: { type: "BOOLEAN" },
+                        gate: { type: "NUMBER" },
+                        drive: { type: "NUMBER" },
+                        level: { type: "NUMBER" },
+                        pedalNote: { type: "STRING" },
+                        ampName: { type: "STRING" },
+                        ampChannel: { type: "STRING" },
+                        gain: { type: "NUMBER" },
+                        bass: { type: "NUMBER" },
+                        mid: { type: "NUMBER" },
+                        treble: { type: "NUMBER" },
+                        presence: { type: "NUMBER" },
+                        master: { type: "NUMBER" },
+                        ampNote: { type: "STRING" },
+                        cabName: { type: "STRING" },
+                        mic1: { type: "STRING" },
+                        mic2: { type: "STRING" },
+                        cabNote: { type: "STRING" },
+                        fxBadge: { type: "STRING" },
+                        eqBands: {
+                            type: "ARRAY",
+                            items: {
+                                type: "OBJECT",
+                                properties: { freq: { type: "STRING" }, db: { type: "NUMBER" } },
+                                required: ["freq", "db"]
+                            }
+                        },
+                        eqNote: { type: "STRING" }
+                    },
+                    required: ["pedalName", "pedalActive", "gate", "drive", "level", "pedalNote", "ampName", "ampChannel", "gain", "bass", "mid", "treble", "presence", "master", "ampNote", "cabName", "mic1", "mic2", "cabNote", "fxBadge", "eqBands", "eqNote"]
+                }
+            },
+            required: ["songTitle", "artistName", "albumName", "releaseYear", "bpm", "genre", "sonicSummary", "theme", "tuning", "difficulty", "winnerPlugin", "winnerTitle", "winnerReason", "reaperSteps", "gojiraRig", "amplitubeRig"]
+        };
+
+        async function callGeminiModel(queryText) {
+            const activeKey = (getSavedUserKey() || defaultCanvasKey).trim();
+            const fail = (code, msg) => { const e = new Error(code); e.userMessage = msg; return e; };
+            if (!activeKey) throw fail("NO_KEY", "Pega tu clave gratuita de Google AI Studio para analizar canciones nuevas");
+
+            const base = "https://generativelanguage.googleapis.com/v1beta";
+            const headers = { "Content-Type": "application/json", "x-goog-api-key": activeKey };
+
+            // 1. Pregunta a Google qué modelos puede usar esta clave (así nunca falla por un nombre antiguo)
+            let models = [];
+            try {
+                const r = await fetch(`${base}/models?pageSize=100`, { headers });
+                if (r.status === 400 || r.status === 401 || r.status === 403) {
+                    const key_hint = activeKey.startsWith("AIza") ? "" : " (las claves de AI Studio empiezan por AIza)";
+                    throw fail("BAD_KEY", "Google rechaza esta clave" + key_hint + ". Crea una nueva en aistudio.google.com/app/apikey");
+                }
+                if (r.ok) {
+                    const j = await r.json();
+                    models = (j.models || [])
+                        .filter(m => (m.supportedGenerationMethods || []).includes("generateContent"))
+                        .map(m => m.name.replace("models/", ""))
+                        .filter(n => /^gemini-/.test(n) && !/(image|tts|embedding|live|audio|robotics|computer|thinking-exp|-exp)/.test(n));
+                }
+            } catch (e) { if (e.userMessage) throw e; }
+
+            // Prioridad: flash estable (rápido y gratis) > flash-lite > pro
+            const rank = n => (/flash-latest$/.test(n) ? 0 : /flash(?!-lite)/.test(n) && !/preview/.test(n) ? 1 : /flash-lite/.test(n) ? 2 : /flash/.test(n) ? 3 : 4);
+            models = [...new Set(models)].sort((a, b) => rank(a) - rank(b) || b.localeCompare(a)).slice(0, 4);
+            if (!models.length) models = ["gemini-flash-latest", "gemini-2.5-flash", "gemini-2.0-flash"];
+
+            const payload = {
+                contents: [{ parts: [{ text: `Analiza la canción "${queryText}" para guitarra en Reaper con Archetype Gojira X y AmpliTube 5.` }] }],
+                systemInstruction: { parts: [{ text: aiSystemInstruction }] },
+                generationConfig: { responseMimeType: "application/json", responseSchema: aiResponseSchema }
+            };
+
+            let lastError = null;
+            for (const modelName of models) {
+                try {
+                    const res = await fetch(`${base}/models/${modelName}:generateContent`, { method: "POST", headers, body: JSON.stringify(payload) });
+                    if (res.status === 429) { lastError = fail("QUOTA", "Has llegado al límite gratuito de Google. Espera un minuto e inténtalo otra vez"); continue; }
+                    if (!res.ok) { lastError = fail("HTTP_" + res.status, "Google devolvió un error (" + res.status + "). Reintentando con otro modelo…"); continue; }
+                    const json = await res.json();
+                    const text = json?.candidates?.[0]?.content?.parts?.map(p => p.text || "").join("");
+                    if (text) return JSON.parse(text.replace(/^```json|```$/g, "").trim());
+                } catch (err) { lastError = err; }
+            }
+            throw lastError || fail("NET", "No se pudo conectar con Google. Comprueba tu conexión");
+        }
+
+        async function executeSongAnalysis(rawQuery) {
+            if (!audioEl.paused) audioEl.pause();
+
+            // 1. Check Instant Built-In Database first (Zero Latency & Never 403s)
+            const curatedMatch = findCuratedMatch(rawQuery);
+            if (curatedMatch) {
+                renderSongAnalysis(curatedMatch, null);
+                addToHistory(curatedMatch, rawQuery, false);
+                const meta = await fetchItunesMetadata(`${curatedMatch.artistName} ${curatedMatch.songTitle}`, { artist: curatedMatch.artistName, title: curatedMatch.songTitle });
+                if (meta) renderSongAnalysis(curatedMatch, meta);
+                return;
+            }
+
+            // 2. Otherwise query Gemini API + iTunes Artwork
+            const submitBtn = document.getElementById("submitBtn");
+            const loadingSheet = document.getElementById("loadingSheet");
+            const workspace = document.getElementById("workspaceContent");
+
+            submitBtn.disabled = true;
+            loadingSheet.classList.remove("hidden");
+            loadingSheet.classList.add("flex");
+            workspace.classList.add("opacity-40", "pointer-events-none");
+
+            try {
+                const [aiData, rawMeta] = await Promise.all([callGeminiModel(rawQuery), fetchItunesMetadata(rawQuery)]);
+                const itunesMeta = (await fetchItunesMetadata(`${aiData.artistName} ${aiData.songTitle}`, { artist: aiData.artistName, title: aiData.songTitle })) || rawMeta;
+                renderSongAnalysis(aiData, itunesMeta);
+                addToHistory(aiData, rawQuery, true);
+            } catch (err) {
+                console.warn("Aviso de API:", err);
+                openModal("portabilityModal");
+                showToast(err && err.userMessage ? err.userMessage : "No se pudo analizar. Revisa tu clave API o prueba una canción del catálogo");
+            } finally {
+                submitBtn.disabled = false;
+                loadingSheet.classList.add("hidden");
+                loadingSheet.classList.remove("flex");
+                workspace.classList.remove("opacity-40", "pointer-events-none");
+            }
+        }
+
+        document.getElementById("searchForm").addEventListener("submit", async (e) => {
+            e.preventDefault();
+            const q = document.getElementById("songInput").value.trim();
+            if (q) await executeSongAnalysis(q);
+        });
+
+        // ============================================================================
+        // BIBLIOTECA: historial + catálogo con portada y muestra de audio
+        // ============================================================================
+        const LIB_KEY = "toneforge_history_v1";
+        const CATALOG_ITEMS = [
+            { title: "Walk", artist: "Pantera", query: "Walk - Pantera" },
+            { title: "Stranded", artist: "Gojira", query: "Stranded - Gojira" },
+            { title: "Master of Puppets", artist: "Metallica", query: "Master of Puppets - Metallica" },
+            { title: "My Own Summer", artist: "Deftones", query: "My Own Summer - Deftones" },
+            { title: "Silvera", artist: "Gojira", query: "Silvera - Gojira" },
+            { title: "Laid to Rest", artist: "Lamb of God", query: "Laid to Rest - Lamb of God" },
+            { title: "7empest", artist: "Tool", query: "7empest - Tool" },
+            { title: "Nemesis", artist: "Arch Enemy", query: "Nemesis - Arch Enemy" }
+        ];
+        const libAudio = new Audio();
+        libAudio.preload = "none";
+        let playingCard = null;
+        const esc = t => String(t == null ? "" : t).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+
+        function loadHistory() { try { return JSON.parse(localStorage.getItem(LIB_KEY) || "[]"); } catch (e) { return []; } }
+        function saveHistory(a) { try { localStorage.setItem(LIB_KEY, JSON.stringify(a.slice(0, 20))); } catch (e) {} }
+        function clearHistory() { try { localStorage.removeItem(LIB_KEY); } catch (e) {} renderLibrary(); showToast("Historial borrado"); }
+
+        function addToHistory(data, query, keepData) {
+            const key = (data.songTitle + "|" + data.artistName).toLowerCase();
+            const arr = loadHistory().filter(h => (h.title + "|" + h.artist).toLowerCase() !== key);
+            arr.unshift({ title: data.songTitle, artist: data.artistName, query: query || (data.songTitle + " - " + data.artistName), data: keepData ? data : undefined });
+            saveHistory(arr);
+            renderLibrary();
+        }
+
+        async function getMeta(artist, title) { return fetchItunesMetadata(`${artist} ${title}`, { artist, title }); }
+
+        function cardHTML(item, src, i) {
+            const fb = createAppleFallbackArtwork(item.title, item.artist, "#ff6933", "#2a120a");
+            return `<article class="lib-card" data-s="${src}" data-i="${i}" style="--d:${Math.min(i, 10) * 55}ms">
+                <div class="lib-cover"><img src="${fb}" alt="" loading="lazy">
+                    <div class="lib-eq"><i></i><i></i><i></i></div>
+                    <button type="button" class="lib-play" aria-label="Escuchar muestra"><span class="i-play">▶</span><span class="i-pause">❚❚</span></button></div>
+                <p class="lib-title">${esc(item.title)}</p><p class="lib-artist">${esc(item.artist)}</p></article>`;
+        }
+
+        function fillRow(rowId, items, src) {
+            const row = document.getElementById(rowId);
+            row.innerHTML = items.map((it, i) => cardHTML(it, src, i)).join("");
+            row.querySelectorAll(".lib-card").forEach((card, i) => {
+                getMeta(items[i].artist, items[i].title).then(m => {
+                    if (!m) { card.classList.add("no-preview"); return; }
+                    const img = card.querySelector("img");
+                    const t = new Image();
+                    t.onload = () => { img.src = m.artwork; };
+                    t.src = m.artwork;
+                    if (!m.previewUrl) card.classList.add("no-preview");
+                });
+            });
+        }
+
+        function renderLibrary() {
+            const h = loadHistory();
+            document.getElementById("historyBlock").classList.toggle("hidden", !h.length);
+            if (h.length) fillRow("historyRow", h, "h");
+            if (!document.getElementById("catalogRow").children.length) { fillRow("catalogRow", CATALOG_ITEMS, "c"); renderReco(); }
+        }
+
+        function resetHeroPreviewUI() {
+            document.getElementById("previewPlayIcon").textContent = "▶";
+            document.getElementById("previewPlayLabel").textContent = "Escuchar Muestra";
+            document.getElementById("previewEqBars").classList.add("hidden");
+        }
+
+        async function toggleCardAudio(card, item) {
+            if (playingCard === card && !libAudio.paused) { libAudio.pause(); return; }
+            const m = await getMeta(item.artist, item.title);
+            if (!m || !m.previewUrl) { card.classList.add("no-preview"); showToast("Esta canción no tiene muestra de audio"); return; }
+            if (!audioEl.paused) { audioEl.pause(); resetHeroPreviewUI(); }
+            card.classList.remove("no-preview");
+            libAudio.src = m.previewUrl;
+            playingCard = card;
+            try { await libAudio.play(); } catch (e) { playingCard = null; }
+        }
+        const clearPlayingCards = () => document.querySelectorAll(".lib-card.is-playing").forEach(c => c.classList.remove("is-playing"));
+        libAudio.addEventListener("play", () => { clearPlayingCards(); if (playingCard) playingCard.classList.add("is-playing"); });
+        libAudio.addEventListener("pause", clearPlayingCards);
+        libAudio.addEventListener("ended", clearPlayingCards);
+        audioEl.addEventListener("play", () => libAudio.pause());
+
+        async function openLibraryItem(item) {
+            window.scrollTo({ top: 0, behavior: "smooth" });
+            if (!audioEl.paused) { audioEl.pause(); resetHeroPreviewUI(); }
+            libAudio.pause();
+            if (item.data) {
+                renderSongAnalysis(item.data, null);
+                const m = await getMeta(item.artist, item.title);
+                if (m) renderSongAnalysis(item.data, m);
+                addToHistory(item.data, item.query, true);
+            } else {
+                await loadSongByQuery(item.query);
+            }
+        }
+
+        // ---------- Recomendaciones semanales por nivel (rotan solas cada lunes)
+        const RECO = {
+            ini: [["Smoke on the Water","Deep Purple"],["Seven Nation Army","The White Stripes"],["Back in Black","AC/DC"],["Paranoid","Black Sabbath"],["Highway to Hell","AC/DC"],["Smells Like Teen Spirit","Nirvana"],["Iron Man","Black Sabbath"],["Enter Sandman","Metallica"]],
+            int: [["Walk","Pantera"],["Killing in the Name","Rage Against the Machine"],["Chop Suey!","System of a Down"],["Sweet Child O' Mine","Guns N' Roses"],["Laid to Rest","Lamb of God"],["Stranded","Gojira"],["My Own Summer","Deftones"],["Ace of Spades","Motörhead"]],
+            adv: [["Master of Puppets","Metallica"],["Silvera","Gojira"],["Nemesis","Arch Enemy"],["7empest","Tool"],["Hangar 18","Megadeth"],["Painkiller","Judas Priest"],["Eruption","Van Halen"],["Davidian","Machine Head"]]
+        };
+        const RECO_HINTS = {
+            ini: "Pocas notas, power chords y ritmos fáciles para ganar soltura",
+            int: "Palm mute rápido, cambios de posición y primeros solos",
+            adv: "Velocidad, técnica precisa y ritmos complejos"
+        };
+        let recoLevel = (() => { try { return localStorage.getItem("toneforge_reco_level") || "ini"; } catch (e) { return "ini"; } })();
+        let recoCurrent = [];
+        function renderReco() {
+            const monday = Math.floor((Date.now() - 4 * 864e5) / 6048e5);
+            const pool = RECO[recoLevel];
+            recoCurrent = [0, 1, 2].map(k => { const [title, artist] = pool[(monday * 3 + k) % pool.length]; return { title, artist, query: title + " - " + artist }; });
+            const start = new Date(monday * 6048e5 + 4 * 864e5);
+            document.getElementById("recoWeek").textContent = "Semana del " + start.toLocaleDateString("es-ES", { day: "numeric", month: "short" });
+            document.getElementById("recoHint").textContent = RECO_HINTS[recoLevel];
+            document.querySelectorAll(".lv-pill").forEach(b => b.classList.toggle("on", b.dataset.lv === recoLevel));
+            fillRow("recoRow", recoCurrent, "r");
+        }
+        function setRecoLevel(l) { recoLevel = l; try { localStorage.setItem("toneforge_reco_level", l); } catch (e) {} renderReco(); }
+
+        document.addEventListener("click", e => {
+            const card = e.target.closest(".lib-card");
+            if (!card) return;
+            const list = card.dataset.s === "h" ? loadHistory() : card.dataset.s === "r" ? recoCurrent : CATALOG_ITEMS;
+            const item = list[+card.dataset.i];
+            if (!item) return;
+            if (e.target.closest(".lib-play")) toggleCardAudio(card, item);
+            else openLibraryItem(item);
+        });
+
+        // Initial Boot
+        window.addEventListener("DOMContentLoaded", async () => {
+            updateApiBadgeUI();
+            renderLibrary();
+            renderSongAnalysis(CURATED_SONGS_DB["walk"], null);
+            const meta = await fetchItunesMetadata("Pantera Walk");
+            if (meta) renderSongAnalysis(CURATED_SONGS_DB["walk"], meta);
+        });
+    </script>
+</body>
+</html>
