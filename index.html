@@ -256,6 +256,13 @@
 
         .lv-pill { flex:none; padding:7px 16px; border-radius:999px; font-size:13px; font-weight:600; color:rgba(235,235,245,.7); background:rgba(255,255,255,.07); border:.5px solid rgba(255,255,255,.14); transition:all .22s; }
         .lv-pill.on { background:var(--accent); color:#fff; border-color:transparent; box-shadow:0 6px 18px -6px var(--accent); }
+
+        .pick-row { display:flex; align-items:center; gap:12px; padding:8px; border-radius:14px; cursor:pointer; transition:background .2s, transform .15s; animation: libIn .4s cubic-bezier(.22,1,.36,1) both; animation-delay:var(--d,0ms); }
+        .pick-row:hover { background:rgba(255,255,255,.08); }
+        .pick-row:active { transform:scale(.98); }
+        .pick-cover { width:54px; height:54px; border-radius:10px; object-fit:cover; flex:none; background:#1c1c1e; border:.5px solid rgba(255,255,255,.14); }
+        .pick-play { width:34px; height:34px; border-radius:50%; flex:none; background:rgba(255,255,255,.1); border:.5px solid rgba(255,255,255,.22); color:#fff; font-size:11px; display:flex; align-items:center; justify-content:center; }
+        .pick-play:hover { background:var(--accent); }
     </style>
 </head>
 <body class="min-h-screen flex flex-col selection:bg-white/20">
@@ -327,6 +334,8 @@
                     <span>Analizar</span>
                 </button>
             </form>
+
+            <div id="pickerSheet" class="hidden apple-material rounded-2xl p-3"></div>
 
             <div id="libraryWrap" class="space-y-5 pt-2">
                 <div id="historyBlock" class="hidden">
@@ -1791,15 +1800,90 @@ REGLAS:
             throw last;
         }
 
-        async function executeSongAnalysis(rawQuery) {
+        // ============================================================================
+        // SELECTOR DE COINCIDENCIAS (evita portadas/canciones de otros grupos)
+        // ============================================================================
+        let pickerItems = [];
+        let pickerRaw = "";
+        const nn = x => (x || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "");
+        const cleanTitle = t => (t || "").replace(/\s*[\(\[].*?[\)\]]/g, "").replace(/\s+-\s+(remaster|live|.*version|.*mix|.*edit).*$/i, "").trim();
+
+        function curatedStrict(match, q, chosen) {
+            if (!match) return null;
+            const t = nn(match.songTitle.replace(/\(.*?\)/g, ""));
+            let qs = null;
+            if (chosen) {
+                const a = nn(chosen.artist), b = nn(match.artistName);
+                if (!(a.includes(b) || b.includes(a))) return null;
+                qs = nn(chosen.title);
+            } else if (q.includes(" - ")) qs = nn(q.split(" - ")[0]);
+            if (qs === null) return match;
+            return (qs.includes(t) || t.includes(qs)) ? match : null;
+        }
+
+        function closePicker() { libAudio.pause(); const b = document.getElementById("pickerSheet"); b.classList.add("hidden"); b.innerHTML = ""; }
+
+        async function showPicker(q) {
+            pickerRaw = q;
+            const box = document.getElementById("pickerSheet");
+            box.classList.remove("hidden");
+            box.innerHTML = '<p class="text-[13px] text-white/60 p-2">Buscando coincidencias…</p>';
+            const list = await searchTracks(q);
+            const seen = new Set();
+            pickerItems = [];
+            for (const r of list) {
+                const title = cleanTitle(r.title);
+                const k = nn(r.artist) + "|" + nn(title);
+                if (seen.has(k)) continue;
+                seen.add(k);
+                pickerItems.push({ ...r, title });
+                if (pickerItems.length >= 6) break;
+            }
+            if (!pickerItems.length) { closePicker(); await executeSongAnalysis(q); return; }
+            box.innerHTML = `<div class="flex items-center justify-between px-1 pb-1">
+                    <h3 class="sf-display text-[15px] font-semibold text-white/95">¿Cuál es? Elige la correcta</h3>
+                    <button type="button" onclick="closePicker()" class="text-white/50 hover:text-white text-[16px] px-2" aria-label="Cerrar">✕</button></div>` +
+                pickerItems.map((it, i) => `<div class="pick-row" style="--d:${i * 50}ms" onclick="choosePick(${i})">
+                    <img class="pick-cover" src="${esc(it.artwork)}" alt="" loading="lazy">
+                    <div class="min-w-0 flex-1"><p class="lib-title" style="margin:0">${esc(it.title)}</p><p class="lib-artist">${esc(it.artist)}${it.year ? " · " + esc(it.year) : ""}</p></div>
+                    ${it.preview ? `<button type="button" class="pick-play" onclick="event.stopPropagation();togglePickPreview(this,${i})" aria-label="Escuchar muestra">▶</button>` : ""}
+                </div>`).join("") +
+                `<button type="button" onclick="pickNone()" class="w-full mt-1 py-2.5 rounded-xl text-[12.5px] text-white/60 hover:text-white apple-button-glass">Ninguna de estas · analizar tal como lo escribí</button>`;
+        }
+
+        function togglePickPreview(btn, i) {
+            const url = pickerItems[i].preview;
+            if (libAudio.src === url && !libAudio.paused) { libAudio.pause(); return; }
+            if (!audioEl.paused) { audioEl.pause(); resetHeroPreviewUI(); }
+            playingCard = null;
+            libAudio.src = url;
+            libAudio.play().then(() => { document.querySelectorAll(".pick-play").forEach(b => b.textContent = "▶"); btn.textContent = "❚❚"; }).catch(() => {});
+        }
+        const resetPickBtns = () => document.querySelectorAll(".pick-play").forEach(b => b.textContent = "▶");
+        libAudio.addEventListener("pause", resetPickBtns);
+        libAudio.addEventListener("ended", resetPickBtns);
+
+        async function choosePick(i) {
+            const it = pickerItems[i];
+            if (!it) return;
+            closePicker();
+            const q = `${it.title} - ${it.artist}`;
+            document.getElementById("songInput").value = q;
+            window.scrollTo({ top: 0, behavior: "smooth" });
+            await executeSongAnalysis(q, it);
+        }
+        async function pickNone() { closePicker(); await executeSongAnalysis(pickerRaw); }
+
+        async function executeSongAnalysis(rawQuery, chosen) {
+            const chosenMeta = chosen ? { artwork: chosen.artwork, previewUrl: chosen.preview, year: chosen.year } : null;
             if (!audioEl.paused) audioEl.pause();
 
             // 1. Check Instant Built-In Database first (Zero Latency & Never 403s)
-            const curatedMatch = findCuratedMatch(rawQuery);
+            const curatedMatch = curatedStrict(findCuratedMatch(rawQuery), rawQuery, chosen);
             if (curatedMatch) {
                 renderSongAnalysis(curatedMatch, null);
                 addToHistory(curatedMatch, rawQuery, false);
-                const meta = await fetchItunesMetadata(`${curatedMatch.artistName} ${curatedMatch.songTitle}`, { artist: curatedMatch.artistName, title: curatedMatch.songTitle });
+                const meta = chosenMeta || await fetchItunesMetadata(`${curatedMatch.artistName} ${curatedMatch.songTitle}`, { artist: curatedMatch.artistName, title: curatedMatch.songTitle });
                 if (meta) renderSongAnalysis(curatedMatch, meta);
                 return;
             }
@@ -1815,8 +1899,11 @@ REGLAS:
             workspace.classList.add("opacity-40", "pointer-events-none");
 
             try {
-                const [aiData, rawMeta] = await Promise.all([callAI(rawQuery), fetchItunesMetadata(rawQuery)]);
-                const itunesMeta = (await fetchItunesMetadata(`${aiData.artistName} ${aiData.songTitle}`, { artist: aiData.artistName, title: aiData.songTitle })) || rawMeta;
+                const aiData = await callAI(rawQuery);
+                if (chosen) { aiData.songTitle = chosen.title; aiData.artistName = chosen.artist; }
+                const itunesMeta = chosenMeta
+                    || (await fetchItunesMetadata(`${aiData.artistName} ${aiData.songTitle}`, { artist: aiData.artistName, title: aiData.songTitle }))
+                    || (await fetchItunesMetadata(rawQuery));
                 renderSongAnalysis(aiData, itunesMeta);
                 addToHistory(aiData, rawQuery, true);
             } catch (err) {
@@ -1834,7 +1921,7 @@ REGLAS:
         document.getElementById("searchForm").addEventListener("submit", async (e) => {
             e.preventDefault();
             const q = document.getElementById("songInput").value.trim();
-            if (q) await executeSongAnalysis(q);
+            if (q) await showPicker(q);
         });
 
         // ============================================================================
