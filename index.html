@@ -263,6 +263,18 @@
         .pick-cover { width:54px; height:54px; border-radius:10px; object-fit:cover; flex:none; background:#1c1c1e; border:.5px solid rgba(255,255,255,.14); }
         .pick-play { width:34px; height:34px; border-radius:50%; flex:none; background:rgba(255,255,255,.1); border:.5px solid rgba(255,255,255,.22); color:#fff; font-size:11px; display:flex; align-items:center; justify-content:center; }
         .pick-play:hover { background:var(--accent); }
+
+        .lib-badge { position:absolute; top:8px; left:8px; z-index:2; padding:3px 8px; border-radius:999px; font-size:10px; font-weight:700; background:rgba(0,0,0,.6); backdrop-filter:blur(10px); border:.5px solid rgba(255,255,255,.3); color:#fff; }
+        #loadingSheet, #workspaceContent { scroll-margin-top:92px; }
+        #libraryWrap > div > :first-child, #libraryWrap > div > div > :first-child { cursor:pointer; }
+        .lib-chev { display:inline-block; margin-left:6px; font-size:12px; color:rgba(255,255,255,.45); transition:transform .25s; }
+        .lib-collapsed > :not(:first-child) { display:none !important; }
+        .lib-collapsed .lib-chev { transform:rotate(-90deg); }
+        .vb { border-radius:14px; padding:10px 12px; font-size:12.5px; line-height:1.45; margin-bottom:16px; }
+        .vb span { display:block; margin-top:3px; font-weight:400; opacity:.85; }
+        .vb a { display:inline-block; margin:6px 8px 0 0; text-decoration:underline; opacity:.9; }
+        .vb.ok { background:rgba(48,209,88,.12); border:.5px solid rgba(48,209,88,.4); color:#9be8b0; font-weight:600; }
+        .vb.warn { background:rgba(255,159,10,.12); border:.5px solid rgba(255,159,10,.4); color:#ffcf80; font-weight:600; }
     </style>
 </head>
 <body class="min-h-screen flex flex-col selection:bg-white/20">
@@ -347,7 +359,7 @@
                 </div>
                 <div id="recoBlock">
                     <div class="px-1 mb-2">
-                        <h3 class="sf-display text-[15px] font-semibold text-white/95">Recomendadas de la semana <span id="recoWeek" class="text-[11px] font-normal text-white/40 ml-1"></span></h3>
+                        <h3 class="sf-display text-[15px] font-semibold text-white/95">Recomendadas de hoy <span id="recoWeek" class="text-[11px] font-normal text-white/40 ml-1"></span></h3>
                     </div>
                     <div class="flex gap-2 mb-1 px-1 overflow-x-auto no-scrollbar">
                         <button type="button" class="lv-pill" data-lv="ini" onclick="setRecoLevel('ini')">Iniciación</button>
@@ -368,7 +380,7 @@
         <div id="loadingSheet" class="hidden apple-material rounded-3xl p-12 flex-col items-center justify-center text-center">
             <div class="w-8 h-8 rounded-full border-2 border-white/15 border-t-white animate-spin mb-4"></div>
             <p class="sf-display text-[17px] font-semibold text-white">Analizando ingeniería de sonido y biomecánica…</p>
-            <p class="text-[13px] text-white/55 mt-1 max-w-md">Calculando afinación, técnica de púa y parámetros exactos para Archetype: Gojira X y AmpliTube 5 en Reaper.</p>
+            <p id="loadingSub" class="text-[13px] text-white/55 mt-1 max-w-md">Calculando afinación, técnica de púa y parámetros exactos para Archetype: Gojira X y AmpliTube 5 en Reaper.</p>
         </div>
 
         <!-- MAIN APPLE MUSIC & LOGIC PRO CONTENT -->
@@ -493,6 +505,7 @@
                         </div>
 
                         <p id="tuningExplanationText" class="text-[13.5px] text-white/70 leading-relaxed mb-5"></p>
+                    <div id="verifyBadge"></div>
 
                         <!-- Visual Headstock / String Pitch Strip -->
                         <div class="apple-material-inset rounded-2xl p-4">
@@ -1504,6 +1517,10 @@
             document.getElementById("tuningHeaderPill").textContent = data.tuning.name;
             document.getElementById("tuningExplanationText").textContent = data.tuning.explanation;
             document.getElementById("transposeTipText").textContent = data.tuning.transposeTip;
+            const vb = document.getElementById("verifyBadge"), v = data.verification;
+            vb.innerHTML = !v ? "" : v.ok
+                ? `<div class="vb ok">✓ Verificado en internet<span>${esc(v.evidence)}</span>${(v.sources || []).map(x => `<a href="${esc(x.url)}" target="_blank" rel="noopener noreferrer">${esc(x.title || "Fuente")}</a>`).join("")}</div>`
+                : `<div class="vb warn">⚠ Sin verificar<span>No se pudo comprobar en internet. Confírmalo con la tab de Songsterr o con un afinador antes de tocar.</span></div>`;
 
             const labels = ["6ª", "5ª", "4ª", "3ª", "2ª", "1ª"];
             const notes = data.tuning.strings || ["E2", "A2", "D3", "G3", "B3", "E4"];
@@ -1575,7 +1592,7 @@
             await executeSongAnalysis(queryText);
         }
 
-        const aiSystemInstruction = `Eres un ingeniero de mezcla en Reaper, especialista en Neural DSP Archetype: Gojira X e IK Multimedia AmpliTube 5, y profesor de guitarra sumamente claro.
+        const aiSystemInstruction = `IDIOMA: responde SIEMPRE en español (explicaciones, pasos, consejos y niveles como Principiante, Intermedio o Avanzado); deja en inglés solo nombres propios y términos como palm mute o hammer-on. Eres un ingeniero de mezcla en Reaper, especialista en Neural DSP Archetype: Gojira X e IK Multimedia AmpliTube 5, y profesor de guitarra sumamente claro.
 El usuario quiere saber cómo tocar una canción y cómo configurar su sonido exacto usando O BIEN Gojira X O BIEN AmpliTube 5 en Reaper.
 REGLAS:
 1. Calibra la puntuación del Riff Principal (1.0 a 10.0) con realismo para alguien que está construyendo su base en la guitarra: riffs que requieran micro-bends precisos, palm-mute muy limpio en alta ganancia o compases con mucho swing (como "Walk" de Pantera) deben puntuarse alrededor de 7.0-7.5/10 explicando paso a paso cómo colocar las manos, sin mencionar jamás el nivel del usuario.
@@ -1872,6 +1889,7 @@ REGLAS:
         async function pickNone() { closePicker(); await executeSongAnalysis(pickerRaw); }
 
         async function executeSongAnalysis(rawQuery, chosen) {
+            collapseLibrary();
             const chosenMeta = chosen ? { artwork: chosen.artwork, previewUrl: chosen.preview, year: chosen.year } : null;
             if (!audioEl.paused) audioEl.pause();
 
@@ -1879,6 +1897,7 @@ REGLAS:
             const curatedMatch = curatedStrict(findCuratedMatch(rawQuery), rawQuery, chosen);
             if (curatedMatch) {
                 renderSongAnalysis(curatedMatch, null);
+                focusResult();
                 addToHistory(curatedMatch, rawQuery, false);
                 const meta = chosenMeta || await fetchItunesMetadata(`${curatedMatch.artistName} ${curatedMatch.songTitle}`, { artist: curatedMatch.artistName, title: curatedMatch.songTitle });
                 if (meta) renderSongAnalysis(curatedMatch, meta);
@@ -1894,14 +1913,19 @@ REGLAS:
             loadingSheet.classList.remove("hidden");
             loadingSheet.classList.add("flex");
             workspace.classList.add("opacity-40", "pointer-events-none");
+            document.getElementById("loadingSub").textContent = "Buscando información verificada en internet y analizando la canción… puede tardar unos segundos.";
+            loadingSheet.scrollIntoView({ behavior: "smooth", block: "start" });
 
             try {
-                const aiData = await callAI(rawQuery);
+                const [qt, qa] = chosen ? [chosen.title, chosen.artist] : (rawQuery.includes(" - ") ? rawQuery.split(" - ").map(x => x.trim()) : [rawQuery, ""]);
+                const [aiData, facts] = await Promise.all([callAI(rawQuery), verifyFacts(qt, qa)]);
+                applyFacts(aiData, facts);
                 if (chosen) { aiData.songTitle = chosen.title; aiData.artistName = chosen.artist; }
                 const itunesMeta = chosenMeta
                     || (await fetchItunesMetadata(`${aiData.artistName} ${aiData.songTitle}`, { artist: aiData.artistName, title: aiData.songTitle }))
                     || (await fetchItunesMetadata(rawQuery));
                 renderSongAnalysis(aiData, itunesMeta);
+                focusResult();
                 addToHistory(aiData, rawQuery, true);
             } catch (err) {
                 console.warn("Aviso de API:", err);
@@ -1957,7 +1981,7 @@ REGLAS:
         function cardHTML(item, src, i) {
             const fb = createAppleFallbackArtwork(item.title, item.artist, "#ff6933", "#2a120a");
             return `<article class="lib-card" data-s="${src}" data-i="${i}" style="--d:${Math.min(i, 10) * 55}ms">
-                <div class="lib-cover"><img src="${fb}" alt="" loading="lazy">
+                <div class="lib-cover">${item.badge ? `<span class="lib-badge">${item.badge}</span>` : ""}<img src="${fb}" alt="" loading="lazy">
                     <div class="lib-eq"><i></i><i></i><i></i></div>
                     <button type="button" class="lib-play" aria-label="Escuchar muestra"><span class="i-play">▶</span><span class="i-pause">❚❚</span></button></div>
                 <p class="lib-title">${esc(item.title)}</p><p class="lib-artist">${esc(item.artist)}</p></article>`;
@@ -2026,9 +2050,9 @@ REGLAS:
 
         // ---------- Recomendaciones semanales por nivel (rotan solas cada lunes)
         const RECO = {
-            ini: [["Smoke on the Water","Deep Purple"],["Seven Nation Army","The White Stripes"],["Back in Black","AC/DC"],["Paranoid","Black Sabbath"],["Highway to Hell","AC/DC"],["Smells Like Teen Spirit","Nirvana"],["Iron Man","Black Sabbath"],["Enter Sandman","Metallica"]],
-            int: [["Walk","Pantera"],["Killing in the Name","Rage Against the Machine"],["Chop Suey!","System of a Down"],["Sweet Child O' Mine","Guns N' Roses"],["Laid to Rest","Lamb of God"],["Stranded","Gojira"],["My Own Summer","Deftones"],["Ace of Spades","Motörhead"]],
-            adv: [["Master of Puppets","Metallica"],["Silvera","Gojira"],["Nemesis","Arch Enemy"],["7empest","Tool"],["Hangar 18","Megadeth"],["Painkiller","Judas Priest"],["Eruption","Van Halen"],["Davidian","Machine Head"]]
+            ini: [["Smoke on the Water","Deep Purple"],["Seven Nation Army","The White Stripes"],["Back in Black","AC/DC"],["Paranoid","Black Sabbath"],["Highway to Hell","AC/DC"],["Smells Like Teen Spirit","Nirvana"],["Iron Man","Black Sabbath"],["Enter Sandman","Metallica"],["Come as You Are","Nirvana"],["Basket Case","Green Day"],["Whole Lotta Love","Led Zeppelin"],["Blitzkrieg Bop","Ramones"],["Song 2","Blur"],["American Idiot","Green Day"],["Zombie","The Cranberries"],["Nothing Else Matters","Metallica"]],
+            int: [["Walk","Pantera"],["Killing in the Name","Rage Against the Machine"],["Chop Suey!","System of a Down"],["Sweet Child O' Mine","Guns N' Roses"],["Laid to Rest","Lamb of God"],["Stranded","Gojira"],["My Own Summer","Deftones"],["Ace of Spades","Motörhead"],["Crazy Train","Ozzy Osbourne"],["Welcome to the Jungle","Guns N' Roses"],["Psychosocial","Slipknot"],["Toxicity","System of a Down"],["Du Hast","Rammstein"],["Duality","Slipknot"],["Down with the Sickness","Disturbed"],["Last Resort","Papa Roach"]],
+            adv: [["Master of Puppets","Metallica"],["Silvera","Gojira"],["Nemesis","Arch Enemy"],["7empest","Tool"],["Hangar 18","Megadeth"],["Painkiller","Judas Priest"],["Eruption","Van Halen"],["Davidian","Machine Head"],["Raining Blood","Slayer"],["Angel of Death","Slayer"],["Pull Me Under","Dream Theater"],["Cliffs of Dover","Eric Johnson"],["Bat Country","Avenged Sevenfold"],["Afterlife","Avenged Sevenfold"],["The Trooper","Iron Maiden"],["One","Metallica"]]
         };
         const RECO_HINTS = {
             ini: "Pocas notas, power chords y ritmos fáciles para ganar soltura",
@@ -2037,15 +2061,38 @@ REGLAS:
         };
         let recoLevel = (() => { try { return localStorage.getItem("toneforge_reco_level") || "ini"; } catch (e) { return "ini"; } })();
         let recoCurrent = [];
+        function mulberry(a) { return function () { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+        const LEVEL_NAME = { ini: "principiante (iniciación)", int: "intermedio", adv: "avanzado" };
         function renderReco() {
-            const monday = Math.floor((Date.now() - 4 * 864e5) / 6048e5);
-            const pool = RECO[recoLevel];
-            recoCurrent = [0, 1, 2].map(k => { const [title, artist] = pool[(monday * 3 + k) % pool.length]; return { title, artist, query: title + " - " + artist }; });
-            const start = new Date(monday * 6048e5 + 4 * 864e5);
-            document.getElementById("recoWeek").textContent = "Semana del " + start.toLocaleDateString("es-ES", { day: "numeric", month: "short" });
-            document.getElementById("recoHint").textContent = RECO_HINTS[recoLevel];
-            document.querySelectorAll(".lv-pill").forEach(b => b.classList.toggle("on", b.dataset.lv === recoLevel));
+            const day = Math.floor((Date.now() - new Date().getTimezoneOffset() * 6e4) / 864e5);
+            const lv = recoLevel, pool = RECO[lv].map(([title, artist]) => ({ title, artist, query: title + " - " + artist }));
+            const rnd = mulberry(day * 7 + ["ini", "int", "adv"].indexOf(lv) + 1);
+            const order = pool.map(x => [rnd(), x]).sort((a, b) => a[0] - b[0]).map(x => x[1]);
+            const fixed = order.slice(0, 4);
+            let sk = null; try { sk = JSON.parse(localStorage.getItem(`toneforge_surprise_${lv}_${day}`) || "null"); } catch (e) {}
+            const surprise = sk && sk.title ? { title: sk.title, artist: sk.artist, query: sk.title + " - " + sk.artist, badge: sk.fixed ? "" : "✨ Sorpresa" } : { ...order[4], badge: "" };
+            recoCurrent = [...fixed, surprise];
+            document.getElementById("recoWeek").textContent = new Date().toLocaleDateString("es-ES", { weekday: "long", day: "numeric", month: "short" });
+            document.getElementById("recoHint").textContent = RECO_HINTS[lv];
+            document.querySelectorAll(".lv-pill").forEach(b => b.classList.toggle("on", b.dataset.lv === lv));
             fillRow("recoRow", recoCurrent, "r");
+            if (!sk) loadSurprise(lv, day, pool, order[4]);
+        }
+        let surpriseBusy = false;
+        async function loadSurprise(lv, day, pool, fallback) {
+            if (surpriseBusy) return; surpriseBusy = true;
+            const key = `toneforge_surprise_${lv}_${day}`;
+            let result = { title: fallback.title, artist: fallback.artist, fixed: true };
+            try {
+                const r = await aiJSON(`Recomienda UNA canción REAL de rock o metal con guitarra eléctrica, de nivel ${LEVEL_NAME[lv]} para aprender, que no sea ninguna de esta lista: ${pool.map(x => x.title).join(", ")}. Responde solo con JSON: {"title":"...","artist":"..."}`);
+                if (r && r.title && r.artist) {
+                    const found = (await searchTracks(`${r.artist} ${r.title}`)).find(x => nn(x.artist).includes(nn(r.artist)) && (nn(x.title).includes(nn(r.title)) || nn(r.title).includes(nn(x.title))));
+                    if (found) result = { title: cleanTitle(found.title), artist: found.artist, fixed: false };
+                }
+            } catch (e) {}
+            try { localStorage.setItem(key, JSON.stringify(result)); } catch (e) {}
+            surpriseBusy = false;
+            if (recoLevel === lv && !result.fixed) renderReco();
         }
         function setRecoLevel(l) { recoLevel = l; try { localStorage.setItem("toneforge_reco_level", l); } catch (e) {} renderReco(); }
 
@@ -2059,10 +2106,97 @@ REGLAS:
             else openLibraryItem(item);
         });
 
+        // ============================================================================
+        // AFINACIONES (tabla fija = nunca inventadas por la IA) + VERIFICACIÓN WEB
+        // ============================================================================
+        const TUNINGS = {
+            standard: { name: "Standard", strings: ["E2","A2","D3","G3","B3","E4"], shift: 0, drop: false },
+            half: { name: "Half-step down (Eb)", strings: ["Eb2","Ab2","Db3","Gb3","Bb3","Eb4"], shift: -1, drop: false },
+            dstd: { name: "D Standard", strings: ["D2","G2","C3","F3","A3","D4"], shift: -2, drop: false },
+            cstd: { name: "C Standard", strings: ["C2","F2","Bb2","Eb3","G3","C4"], shift: -4, drop: false },
+            dropD: { name: "Drop D", strings: ["D2","A2","D3","G3","B3","E4"], shift: 0, drop: true },
+            dropCs: { name: "Drop C#", strings: ["C#2","G#2","C#3","F#3","A#3","D#4"], shift: -1, drop: true },
+            dropC: { name: "Drop C", strings: ["C2","G2","C3","F3","A3","D4"], shift: -2, drop: true },
+            dropB: { name: "Drop B", strings: ["B1","F#2","B2","E3","G#3","C#4"], shift: -3, drop: true }
+        };
+        function tuningFromName(n) {
+            const t = (n || "").toLowerCase();
+            if (/drop\s*(c#|db|d♭)/.test(t)) return "dropCs";
+            if (/drop\s*c\b/.test(t)) return "dropC";
+            if (/drop\s*b\b/.test(t)) return "dropB";
+            if (/drop\s*d\b/.test(t)) return "dropD";
+            if (/half|medio tono|e♭|eb\s*st|d#\s*st/.test(t)) return "half";
+            if (/\bd\s*st|re\s*est/.test(t)) return "dstd";
+            if (/\bc\s*st|do\s*est/.test(t)) return "cstd";
+            if (/standard|est[aá]ndar/.test(t)) return "standard";
+            return null;
+        }
+        function buildTuning(key) {
+            const T = TUNINGS[key], s = T.shift, n = -s;
+            const explanation = `Afinación ${T.name}: ${T.strings.join(" · ")} (de la 6ª a la 1ª cuerda).`;
+            let tip;
+            if (!T.drop && s === 0) tip = "Se toca directamente en afinación estándar: no hace falta cambiar nada.";
+            else if (!T.drop) tip = `Para no desafinar tu guitarra, déjala en estándar (E) y baja la señal ${n} semitono${n > 1 ? "s" : ""} en Reaper (ReaPitch o el Transpose del plugin en ${s}).`;
+            else if (s === 0) tip = "Baja solo la 6ª cuerda de Mi (E) a Re (D); las demás se quedan igual.";
+            else tip = `Afina solo la 6ª cuerda a Re (Drop D) y baja la señal ${n} semitono${n > 1 ? "s" : ""} en Reaper (ReaPitch o el Transpose del plugin en ${s}). Así suena como la grabación sin desafinar el resto.`;
+            return { name: T.name, strings: T.strings.slice(), explanation, transposeTip: tip };
+        }
+        function applyFacts(d, f) {
+            const ok = !!(f && f.sources && f.sources.length && TUNINGS[f.tuning] && f.confidence !== "baja");
+            const key = ok ? f.tuning : tuningFromName(d.tuning && d.tuning.name);
+            if (key) d.tuning = buildTuning(key);
+            if (ok && Number.isFinite(+f.bpm) && +f.bpm > 40 && +f.bpm < 300) d.bpm = +f.bpm;
+            d.verification = { ok, sources: (f && f.sources) || [], evidence: (f && f.evidence) || "" };
+        }
+        const GEM = "https://generativelanguage.googleapis.com/v1beta";
+        async function verifyFacts(title, artist) {
+            const mk = (getSavedUserKey() || defaultCanvasKey).trim();
+            if (!mk) return null;
+            const prompt = `Usa la búsqueda web para averiguar datos REALES de la versión de estudio de "${title}"${artist ? " de " + artist : ""}. Responde SOLO con un JSON (sin texto extra): {"tuning":"standard|half|dstd|dropD|dropCs|dropC|cstd|dropB|other","bpm":número o null,"confidence":"alta|media|baja","evidence":"una frase en español"}. standard=E A D G B E; half=medio tono abajo (Eb); dstd=D estándar (D G C F A D); dropD=D A D G B E; dropCs=Drop C#; dropC=Drop C; cstd=C estándar; dropB=Drop B; other=cualquier otra. Guíate por tablaturas y fuentes fiables (Songsterr, Ultimate Guitar, Guitar World), no por suposiciones.`;
+            for (const m of ["gemini-2.5-flash", "gemini-flash-latest", "gemini-2.0-flash"]) {
+                try {
+                    const r = await tfetch(`${GEM}/models/${m}:generateContent`, { method: "POST", headers: { "Content-Type": "application/json", "x-goog-api-key": mk }, body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }], tools: [{ google_search: {} }] }) }, 25000);
+                    if (!r.ok) continue;
+                    const c = (await r.json())?.candidates?.[0];
+                    const mt = (c?.content?.parts || []).map(p => p.text || "").join("").match(/\{[\s\S]*\}/);
+                    if (!mt) continue;
+                    const f = JSON.parse(mt[0]);
+                    f.sources = (c?.groundingMetadata?.groundingChunks || []).map(g => g.web).filter(Boolean).map(w => ({ url: w.uri, title: w.title })).slice(0, 3);
+                    return f;
+                } catch (e) {}
+            }
+            return null;
+        }
+        async function aiJSON(prompt) {
+            const gk = getGroqKey().trim(), mk = (getSavedUserKey() || defaultCanvasKey).trim();
+            if (gk) { try { const r = await tfetch("https://api.groq.com/openai/v1/chat/completions", { method: "POST", headers: { "Content-Type": "application/json", "Authorization": "Bearer " + gk }, body: JSON.stringify({ model: "llama-3.3-70b-versatile", temperature: 0.9, max_tokens: 200, response_format: { type: "json_object" }, messages: [{ role: "user", content: prompt }] }) }, 15000); if (r.ok) { const t = (await r.json())?.choices?.[0]?.message?.content; if (t) return JSON.parse(t); } } catch (e) {} }
+            if (mk) { try { const r = await tfetch(`${GEM}/models/gemini-flash-latest:generateContent`, { method: "POST", headers: { "Content-Type": "application/json", "x-goog-api-key": mk }, body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }], generationConfig: { responseMimeType: "application/json" } }) }, 15000); if (r.ok) { const t = (await r.json())?.candidates?.[0]?.content?.parts?.map(p => p.text || "").join(""); if (t) return JSON.parse(t); } } catch (e) {} }
+            return null;
+        }
+
+        // ---------- Secciones plegables + primer plano
+        const BLOCK_IDS = () => [document.getElementById("historyBlock"), document.getElementById("recoBlock"), document.getElementById("catalogRow").parentElement];
+        function initCollapsible() {
+            let saved = {}; try { saved = JSON.parse(localStorage.getItem("toneforge_collapsed") || "{}"); } catch (e) {}
+            BLOCK_IDS().forEach((b, i) => {
+                const h = b.querySelector("h3"); if (!h.querySelector(".lib-chev")) h.insertAdjacentHTML("beforeend", '<span class="lib-chev">▾</span>');
+                if (saved[i]) b.classList.add("lib-collapsed");
+                b.firstElementChild.addEventListener("click", e => {
+                    if (e.target.closest("button")) return;
+                    b.classList.toggle("lib-collapsed");
+                    const st = {}; BLOCK_IDS().forEach((x, j) => st[j] = x.classList.contains("lib-collapsed"));
+                    try { localStorage.setItem("toneforge_collapsed", JSON.stringify(st)); } catch (e2) {}
+                });
+            });
+        }
+        function collapseLibrary() { BLOCK_IDS().forEach(b => b.classList.add("lib-collapsed")); }
+        function focusResult() { requestAnimationFrame(() => setTimeout(() => document.getElementById("workspaceContent").scrollIntoView({ behavior: "smooth", block: "start" }), 80)); }
+
         // Initial Boot
         window.addEventListener("DOMContentLoaded", async () => {
             updateApiBadgeUI();
             renderLibrary();
+            initCollapsible();
             renderSongAnalysis(CURATED_SONGS_DB["walk"], null);
             const meta = await fetchItunesMetadata("Pantera Walk");
             if (meta) renderSongAnalysis(CURATED_SONGS_DB["walk"], meta);
